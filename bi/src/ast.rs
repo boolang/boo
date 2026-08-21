@@ -8,6 +8,12 @@ pub struct Rich<T> {
     pub span: Span,
 }
 
+impl<T> Rich<T> {
+    pub fn new(value: T, span: Span) -> Self {
+        Self { value, span }
+    }
+}
+
 pub type Ident = Rich<String>;
 
 // MARK: Literals
@@ -71,7 +77,7 @@ pub struct ElseBlock {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct IfStmt {
     pub if_blocks: Vec<IfBlock>,
-    pub else_block: ElseBlock,
+    pub else_block: Option<ElseBlock>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -100,6 +106,10 @@ pub enum Stmt {
     While(WhileStmt),
     VarDecl(VarDecl),
     Assignment(AssignmentStmt),
+    Expr(Expr),
+    Break,
+    Continue,
+    Return(Option<Expr>),
 }
 
 // MARK: Declarations
