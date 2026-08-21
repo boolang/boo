@@ -32,9 +32,11 @@ f add(int1: I, int2: I) -> I {
   r result
 }
 
-f display_question(question: Question) {
-  m (question) {
-    MultiChoice
+f display_result(result: Result<S, U>) {
+  m (result) {
+    Ok(value) => {
+      
+    }
   }
 }
 
@@ -108,7 +110,7 @@ Q => 64 bit integer
 R
 S => string
 T
-U => prefix for unsigned integer types
+U => unit type (and prefix for unsigned integer types)
 V => vector
 W
 X
