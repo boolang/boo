@@ -1,3 +1,7 @@
+use crate::lexer::tokenise;
+
+mod lexer;
+
 fn main() {
-    println!("Hello, world!");
+    println!("{:?}", tokenise("f foo bar"))
 }
