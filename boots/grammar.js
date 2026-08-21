@@ -169,6 +169,7 @@ export default grammar({
       prec.left(8, seq($.expression, "-", $.expression)),
       prec.left(9, seq($.expression, "*", $.expression)),
       prec.left(9, seq($.expression, "/", $.expression)),
+      prec.left(9, seq($.expression, "%", $.expression)),
     ),
 
     call: $ => seq(
