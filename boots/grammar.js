@@ -6,7 +6,7 @@
 // @ts-check
 
 export default grammar({
-  name: "boots",
+  name: "boo",
 
   extras: ($) => [
     /\s/,

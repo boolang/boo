@@ -10,3 +10,4 @@
 (pattern (identifier) @constructor (binding) @variable)
 (call (identifier) @function.call)
 (expression (identifier) @variable)
+(string) @string
