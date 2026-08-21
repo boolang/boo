@@ -62,11 +62,31 @@ pub struct FunctionCallExpr {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct StructInitExpr {
+    pub ident: Ident,
+    pub arguments: Vec<StructInitArgument>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct StructInitArgument {
+    pub label: Ident,
+    pub value: Expr,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct MemberAccessExpr {
+    pub base: Expr,
+    pub member: Ident,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expr {
     Ident(Ident),
+    MemberAccess(Box<MemberAccessExpr>),
     Literal(LiteralExpr),
     FunctionCall(FunctionCallExpr),
     Paren(Box<Rich<Expr>>),
+    StructInit(StructInitExpr),
 }
 
 // MARK: Statements

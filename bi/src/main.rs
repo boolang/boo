@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use crate::ast::{
-    Ast, Decl, Expr, Function, FunctionCallExpr, FunctionSignature, Ident, LiteralExpr, Stmt,
-    StringLiteral,
+    Ast, Decl, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident, LiteralExpr,
+    MemberAccessExpr, Rich, SimpleType, Stmt, StringLiteral, Struct, StructInitArgument,
+    StructInitExpr, Type, VarDecl,
 };
 use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
@@ -12,6 +13,28 @@ mod ast;
 mod interpreter;
 mod lexer;
 mod parser;
+
+fn ident(ident: &str) -> Ident {
+    Ident::new(ident.into(), Range { start: 0, end: 0 })
+}
+
+fn ty(ty: &str) -> Type {
+    Type::Simple(SimpleType {
+        ident: ident(ty),
+        generic_parameters: vec![],
+    })
+}
+
+fn str_lit(value: &str) -> Expr {
+    Expr::Literal(LiteralExpr::String(ident(value)))
+}
+
+fn int_lit(value: i128) -> Expr {
+    Expr::Literal(LiteralExpr::Int(Rich {
+        value,
+        span: Range { start: 0, end: 0 },
+    }))
+}
 
 fn main() {
     // println!(
@@ -24,22 +47,56 @@ fn main() {
 
     println!("{:?}", parse(&tokenise("s Foo {}").unwrap()));
 
-    let dummy_span: Range<usize> = Range { start: 0, end: 0 };
     let ast = Ast {
-        decls: vec![Decl::Function(Function {
-            signature: FunctionSignature {
-                ident: Ident::new(String::from("main"), dummy_span),
-                parameters: vec![],
-                ret: None,
-            },
-            stmts: vec![Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
-                ident: Ident::new(String::from("print"), dummy_span),
-                arguments: vec![Expr::Literal(LiteralExpr::String(StringLiteral::new(
-                    String::from("Hello, World!"),
-                    dummy_span,
-                )))],
-            }))],
-        })],
+        decls: vec![
+            Decl::Struct(Struct {
+                ident: ident("Person"),
+                fields: vec![
+                    Field {
+                        ident: ident("name"),
+                        ty: ty("S"),
+                    },
+                    Field {
+                        ident: ident("age"),
+                        ty: ty("I"),
+                    },
+                ],
+            }),
+            Decl::Function(Function {
+                signature: FunctionSignature {
+                    ident: ident("main"),
+                    parameters: vec![],
+                    ret: None,
+                },
+                stmts: vec![
+                    Stmt::VarDecl(VarDecl {
+                        mutable: false,
+                        ident: ident("person"),
+                        ty: None,
+                        value: Some(Expr::StructInit(StructInitExpr {
+                            ident: ident("Person"),
+                            arguments: vec![
+                                StructInitArgument {
+                                    label: ident("name"),
+                                    value: str_lit("stackotter"),
+                                },
+                                StructInitArgument {
+                                    label: ident("age"),
+                                    value: int_lit(21),
+                                },
+                            ],
+                        })),
+                    }),
+                    Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
+                        ident: ident("print"),
+                        arguments: vec![Expr::MemberAccess(Box::new(MemberAccessExpr {
+                            base: Expr::Ident(ident("person")),
+                            member: ident("name"),
+                        }))],
+                    })),
+                ],
+            }),
+        ],
     };
 
     let mut interpreter = Interpreter::new(ast);

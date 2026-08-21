@@ -3,16 +3,29 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
     Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LiteralExpr, Parameter, SimpleType,
-    Stmt, Struct, Type,
+    Stmt, Struct, StructInitExpr, Type,
 };
 use anyhow::{Result, anyhow};
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructValue {
+    pub decl: Struct,
+    pub value: HashMap<String, Value>,
+}
+
+impl StructValue {
+    fn ty(&self) -> Type {
+        simple_type(&self.decl.ident.value)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Int(i128),
     Bool(bool),
     String(String),
     Unit,
+    Struct(StructValue),
 }
 
 fn simple_type(ident: &str) -> Type {
@@ -29,6 +42,7 @@ impl Value {
             Value::Bool(_) => simple_type("B"),
             Value::String(_) => simple_type("S"),
             Value::Unit => simple_type("U"),
+            Value::Struct(value) => value.ty(),
         }
     }
 
@@ -40,7 +54,7 @@ impl Value {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Variable {
     mutable: bool,
     value: Option<Value>,
@@ -426,7 +440,82 @@ impl Interpreter {
                     .collect();
                 self.eval_fn(&call.ident.value, arguments?)
             }
+            Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
+            Expr::MemberAccess(member_access) => {
+                let base_value = self.eval_expr(&member_access.base)?;
+                let struct_value = match base_value {
+                    Value::Struct(value) => value,
+                    _ => {
+                        return Err(anyhow!(
+                            "Base value of member access must be a struct, got a value of type '{}'",
+                            base_value.infer_type()
+                        ));
+                    }
+                };
+
+                match struct_value.value.get(&member_access.member.value) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(anyhow!(
+                        "Value of type '{}' has no member '{}'",
+                        struct_value.ty(),
+                        member_access.member.value
+                    )),
+                }
+            }
         }
+    }
+
+    fn eval_struct_init(&mut self, struct_init: &StructInitExpr) -> Result<Value> {
+        let struct_decl = self
+            .structs
+            .iter()
+            .find(|decl| decl.ident.value == struct_init.ident.value)
+            .ok_or(anyhow!(
+                "No such struct '{}' (referenced from struct init expr at {:?})",
+                struct_init.ident.value,
+                struct_init.ident.span
+            ))?
+            .clone();
+        if struct_decl.fields.len() != struct_init.arguments.len() {
+            return Err(anyhow!(
+                "struct '{}' has {} fields, but got given {} in init expression",
+                struct_decl.ident.value,
+                struct_decl.fields.len(),
+                struct_init.arguments.len()
+            ));
+        }
+
+        for (field, argument) in struct_decl.fields.iter().zip(&struct_init.arguments) {
+            if field.ident.value != argument.label.value {
+                return Err(anyhow!(
+                    "Expected field named {} at {:?} but got a field named {} (in struct init expression for '{}')",
+                    field.ident.value,
+                    argument.label.span,
+                    argument.label.value,
+                    struct_decl.ident.value
+                ));
+            }
+        }
+
+        let mut values = HashMap::new();
+        for (field, argument) in struct_decl.fields.iter().zip(&struct_init.arguments) {
+            let value = self.eval_expr(&argument.value)?;
+            if value.infer_type() != field.ty {
+                return Err(anyhow!(
+                    "Expected expression of type {} but got expression of type {} (for field {} of struct {})",
+                    field.ty,
+                    value.infer_type(),
+                    field.ident.value,
+                    struct_decl.ident.value
+                ));
+            }
+            values.insert(field.ident.value.clone(), value);
+        }
+
+        Ok(Value::Struct(StructValue {
+            decl: struct_decl.clone(),
+            value: values,
+        }))
     }
 
     fn eval_literal(&mut self, literal: &LiteralExpr) -> Value {
