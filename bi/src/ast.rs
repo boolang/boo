@@ -19,17 +19,9 @@ pub enum LiteralExpr {
     String(StringLiteral),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct IntLiteral {
-    value: i128,
-    span: Span,
-}
+pub type IntLiteral = Rich<i128>;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct BoolLiteral {
-    value: bool,
-    span: Span,
-}
+pub type BoolLiteral = Rich<bool>;
 
 pub type StringLiteral = Rich<String>;
 
@@ -79,13 +71,13 @@ pub struct ElseBlock {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct IfStmt {
     if_blocks: Vec<IfBlock>,
-    else_block: ElseBlock
+    else_block: ElseBlock,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WhileStmt {
     condition: Expr,
-    stmts: Vec<Stmt>
+    stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -127,7 +119,7 @@ pub struct Struct {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Case {
     ident: Ident,
-    ty: Option<Type>
+    ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -151,7 +143,7 @@ pub struct FunctionSignature {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Function {
     signature: FunctionSignature,
-    stmts: Vec<Stmt>
+    stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

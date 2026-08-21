@@ -1,5 +1,3 @@
-use std::range::Range;
-
 use winnow::LocatingSlice;
 use winnow::Parser;
 use winnow::ascii::alpha1;
@@ -27,13 +25,11 @@ use winnow::token::one_of;
 use winnow::token::take;
 use winnow::token::take_while;
 
-#[derive(Clone, Debug)]
-pub struct Token {
-    kind: TokenKind,
-    span: Range<usize>,
-}
+use crate::ast::Rich;
 
-#[derive(Clone, Debug)]
+pub type Token = Rich<TokenKind>;
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TokenKind {
     Id(String),
     Int(i128),
