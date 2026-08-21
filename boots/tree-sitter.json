@@ -10,7 +10,8 @@
         "boo"
       ],
       "injection-regex": "^boots$",
-      "class-name": "TreeSitterBoots"
+      "class-name": "TreeSitterBoots",
+      "highlights": "queries/highlights.scm"
     }
   ],
   "metadata": {

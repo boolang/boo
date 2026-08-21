@@ -617,7 +617,7 @@
       "members": [
         {
           "type": "STRING",
-          "value": "break"
+          "value": "b"
         },
         {
           "type": "STRING",
@@ -630,7 +630,7 @@
       "members": [
         {
           "type": "STRING",
-          "value": "continue"
+          "value": "c"
         },
         {
           "type": "STRING",

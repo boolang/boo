@@ -130,8 +130,8 @@ export default grammar({
 
     return_statement: $ => seq('r', $.expression, ';'),
 
-    break: $ => seq('break', ';'),
-    continue: $ => seq('continue', ';'),
+    break: $ => seq('b', ';'),
+    continue: $ => seq('c', ';'),
 
     expression: $ => choice(
       $.literal,

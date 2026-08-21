@@ -1,4 +1,4 @@
-[ "e" "f" "i" "l" "m" "r" "s" "t" "v" "w" ] @keyword
+[ "b" "c" "e" "f" "i" "l" "m" "r" "s" "t" "v" "w" ] @keyword
 
 [ "=" "->" "=>" ] @punctuation
 [ "(" ")" "{" "}" "<" ">" ] @punctuation.bracket
