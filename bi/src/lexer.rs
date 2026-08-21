@@ -53,6 +53,7 @@ pub enum TokenKind {
     KIf,
     KLet,
     KMatch,
+    KReturn,
     KStruct,
     KType,
     KVar,
@@ -64,6 +65,9 @@ pub enum TokenKind {
     OpenBrace,
     CloseBrace,
     Colon,
+    Semicolon,
+    Arrow,
+    DoubleArrow,
     Comma,
     Equals,
     Bang,
@@ -103,6 +107,7 @@ fn keyword(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         "i" => empty.value(TokenKind::KIf),
         "l" => empty.value(TokenKind::KLet),
         "m" => empty.value(TokenKind::KMatch),
+        "r" => empty.value(TokenKind::KReturn),
         "s" => empty.value(TokenKind::KStruct),
         "t" => empty.value(TokenKind::KType),
         "v" => empty.value(TokenKind::KVar),
@@ -120,19 +125,27 @@ fn keyword(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
 }
 
 fn sym(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
-    dispatch! {any;
-        '(' => empty.value(TokenKind::OpenPar),
-        ')' => empty.value(TokenKind::ClosePar),
-        '[' => empty.value(TokenKind::OpenBracket),
-        ']' => empty.value(TokenKind::CloseBracket),
-        '{' => empty.value(TokenKind::OpenBrace),
-        '}' => empty.value(TokenKind::CloseBrace),
-        '=' => empty.value(TokenKind::Equals),
-        '!' => empty.value(TokenKind::Bang),
-        ':' => empty.value(TokenKind::Colon),
-        ',' => empty.value(TokenKind::Comma),
-        _ => fail,
-    }
+    alt((
+        dispatch! {any;
+            '(' => empty.value(TokenKind::OpenPar),
+            ')' => empty.value(TokenKind::ClosePar),
+            '[' => empty.value(TokenKind::OpenBracket),
+            ']' => empty.value(TokenKind::CloseBracket),
+            '{' => empty.value(TokenKind::OpenBrace),
+            '}' => empty.value(TokenKind::CloseBrace),
+            '=' => empty.value(TokenKind::Equals),
+            '!' => empty.value(TokenKind::Bang),
+            ':' => empty.value(TokenKind::Colon),
+            ';' => empty.value(TokenKind::Semicolon),
+            ',' => empty.value(TokenKind::Comma),
+            _ => fail,
+        },
+        dispatch! {take(2usize);
+            "->" => empty.value(TokenKind::Arrow),
+            "=>" => empty.value(TokenKind::DoubleArrow),
+            _ => fail,
+        },
+    ))
     .with_span()
     .map(|(kind, span)| Token {
         kind,

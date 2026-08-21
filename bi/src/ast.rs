@@ -148,6 +148,7 @@ pub struct Parameter {
 pub struct FunctionSignature {
     pub ident: Ident,
     pub parameters: Vec<Parameter>,
+    pub ret: Option<Type>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

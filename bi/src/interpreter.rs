@@ -207,6 +207,7 @@ impl Interpreter {
                             }),
                         })
                         .collect(),
+                    ret: None,
                 },
                 body: Arc::new(body),
             },
