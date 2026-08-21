@@ -83,6 +83,8 @@ export default grammar({
       $.var_decl_statement,
       $.call_statement,
       $.return_statement,
+      $.break,
+      $.continue,
     ),
 
     if_statement: $ => seq(
@@ -110,7 +112,7 @@ export default grammar({
     ),
 
     assign_statement: $ => seq(
-      $.identifier,
+      $.binding,
       '=',
       $.expression,
       ';',
@@ -118,7 +120,7 @@ export default grammar({
 
     var_decl_statement: $ => seq(
       choice('l', 'v'),
-      choice($.identifier, $.typed_var),
+      choice($.binding, $.typed_var),
       '=',
       $.expression,
       ';',
@@ -127,6 +129,9 @@ export default grammar({
     call_statement: $ => seq($.call, ';'),
 
     return_statement: $ => seq('r', $.expression, ';'),
+
+    break: $ => seq('break', ';'),
+    continue: $ => seq('continue', ';'),
 
     // TODO all of this
     expression: $ => choice(
@@ -158,14 +163,16 @@ export default grammar({
 
     pattern: $ => choice(
       $.identifier,
-      seq($.identifier, '(', $.identifier, ')'),
+      seq($.identifier, '(', $.binding, ')'),
     ),
 
     typed_var: $ => seq(
-      $.identifier,
+      $.binding,
       ':',
       $.type,
     ),
+
+    binding: $ => $.identifier,
 
     type: $ => choice(
       $.identifier,

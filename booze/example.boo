@@ -37,6 +37,7 @@ f main() {
       print("2");
     } e {
       print("3");
+      index = blah(6);
     }
   }
 }

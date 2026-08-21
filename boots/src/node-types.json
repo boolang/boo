@@ -8,11 +8,11 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "binding",
           "named": true
         },
         {
-          "type": "identifier",
+          "type": "expression",
           "named": true
         }
       ]
@@ -34,6 +34,21 @@
     }
   },
   {
+    "type": "binding",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "block",
     "named": true,
     "fields": {},
@@ -47,6 +62,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "break",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "call",
@@ -81,6 +101,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "continue",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "enum_def",
@@ -271,6 +296,10 @@
       "required": true,
       "types": [
         {
+          "type": "binding",
+          "named": true
+        },
+        {
           "type": "identifier",
           "named": true
         }
@@ -329,7 +358,15 @@
           "named": true
         },
         {
+          "type": "break",
+          "named": true
+        },
+        {
           "type": "call_statement",
+          "named": true
+        },
+        {
+          "type": "continue",
           "named": true
         },
         {
@@ -425,7 +462,7 @@
       "required": true,
       "types": [
         {
-          "type": "identifier",
+          "type": "binding",
           "named": true
         },
         {
@@ -444,11 +481,11 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "binding",
           "named": true
         },
         {
-          "type": "identifier",
+          "type": "expression",
           "named": true
         },
         {
@@ -534,9 +571,17 @@
     "named": false
   },
   {
+    "type": "break",
+    "named": false
+  },
+  {
     "type": "comment",
     "named": true,
     "extra": true
+  },
+  {
+    "type": "continue",
+    "named": false
   },
   {
     "type": "e",
