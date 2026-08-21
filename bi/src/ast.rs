@@ -1,4 +1,4 @@
-use std::range::Range;
+use std::{fmt::Display, range::Range};
 
 pub type Span = Range<usize>;
 
@@ -43,6 +43,14 @@ pub struct SimpleType {
 pub enum Type {
     // NOTE: May add more cases for types with explicit modules
     Simple(SimpleType),
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Simple(ty) => f.write_str(&ty.ident.value.to_string()),
+        }
+    }
 }
 
 // MARK: Expressions

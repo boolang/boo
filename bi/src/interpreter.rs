@@ -15,20 +15,27 @@ pub enum Value {
     Unit,
 }
 
+fn simple_type(ident: &str) -> Type {
+    Type::Simple(SimpleType {
+        ident: Ident::new(ident.into(), Range { start: 0, end: 0 }),
+        generic_parameters: vec![],
+    })
+}
+
 impl Value {
-    fn ty(&self) -> &'static str {
+    fn infer_type(&self) -> Type {
         match self {
-            Value::Int(_) => "I",
-            Value::Bool(_) => "B",
-            Value::String(_) => "S",
-            Value::Unit => "U",
+            Value::Int(_) => simple_type("I"),
+            Value::Bool(_) => simple_type("B"),
+            Value::String(_) => simple_type("S"),
+            Value::Unit => simple_type("U"),
         }
     }
 
     pub fn as_string(&self) -> Result<String> {
         match &self {
             Value::String(value) => Ok(value.clone()),
-            _ => Err(anyhow!("Expected S, got {}", self.ty())),
+            _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
         }
     }
 }
@@ -37,6 +44,7 @@ impl Value {
 struct Variable {
     mutable: bool,
     value: Option<Value>,
+    ty: Type,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -99,6 +107,14 @@ impl Context {
     fn set_variable(&mut self, ident: &str, new_value: Value) -> Result<()> {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(variable) = scope.variables.get_mut(ident) {
+                if variable.ty != new_value.infer_type() {
+                    return Err(anyhow!(
+                        "Attempted to assign value of type {} to variable '{}' with type {}",
+                        new_value.infer_type(),
+                        ident,
+                        variable.ty
+                    ));
+                }
                 variable.value = Some(new_value);
                 return Ok(());
             }
@@ -106,18 +122,37 @@ impl Context {
         Err(anyhow!("No such variable '{}' in current context", ident))
     }
 
-    fn new_variable(&mut self, ident: &str, mutable: bool, value: Option<Value>) -> Result<()> {
+    fn new_variable(
+        &mut self,
+        ident: &str,
+        mutable: bool,
+        ty: Option<Type>,
+        value: Option<Value>,
+    ) -> Result<()> {
         for scope in self.scopes.iter() {
             if scope.variables.contains_key(ident) {
                 return Err(anyhow!("Variable already exists with name '{}'", ident));
             }
         }
 
+        let ty = match ty {
+            Some(ty) => ty,
+            None => match &value {
+                Some(value) => value.infer_type(),
+                None => {
+                    return Err(anyhow!(
+                        "Variable declaration for '{}' must have an initial value or type annotation",
+                        ident
+                    ));
+                }
+            },
+        };
+
         self.scopes
             .last_mut()
             .ok_or(anyhow!("Context with no scopes??"))?
             .variables
-            .insert(String::from(ident), Variable { mutable, value });
+            .insert(String::from(ident), Variable { mutable, value, ty });
 
         Ok(())
     }
@@ -244,14 +279,30 @@ impl Interpreter {
             ));
         }
 
+        for (param, arg) in signature.parameters.iter().zip(&arguments) {
+            if param.ty != arg.infer_type() {
+                return Err(anyhow!(
+                    "Parameter '{}' of function '{}' has type {} but got argument of type {}",
+                    param.label.value,
+                    ident,
+                    param.ty,
+                    arg.infer_type()
+                ));
+            }
+        }
+
         let action = match body {
             Body::Stmts(stmts) => {
                 let caller_context = self.context.clone();
 
                 self.context = Context::new();
                 for (param, arg) in signature.parameters.iter().zip(arguments) {
-                    self.context
-                        .new_variable(&param.label.value, false, Some(arg))?;
+                    self.context.new_variable(
+                        &param.label.value,
+                        false,
+                        Some(param.ty.clone()),
+                        Some(arg),
+                    )?;
                 }
 
                 let action = self.exec_block(&stmts.clone(), false)?;
@@ -294,8 +345,12 @@ impl Interpreter {
                     Some(expr) => Some(self.eval_expr(expr)?),
                     None => None,
                 };
-                self.context
-                    .new_variable(&decl.ident.value, decl.mutable, value)?;
+                self.context.new_variable(
+                    &decl.ident.value,
+                    decl.mutable,
+                    decl.ty.clone(),
+                    value,
+                )?;
             }
             Stmt::Assignment(assignment) => {
                 let value = self.eval_expr(&assignment.value)?;

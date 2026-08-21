@@ -30,6 +30,7 @@ fn main() {
             signature: FunctionSignature {
                 ident: Ident::new(String::from("main"), dummy_span),
                 parameters: vec![],
+                ret: None,
             },
             stmts: vec![Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                 ident: Ident::new(String::from("print"), dummy_span),
