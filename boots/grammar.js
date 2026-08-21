@@ -133,9 +133,9 @@ export default grammar({
     break: $ => seq('break', ';'),
     continue: $ => seq('continue', ';'),
 
-    // TODO all of this
     expression: $ => choice(
       $.literal,
+      $.unary_expr,
       $.binary_expr,
       $.call,
       $.identifier,
@@ -143,15 +143,32 @@ export default grammar({
 
     literal: $ => choice(
       $.string,
+      $.char,
       $.number,
     ),
 
-    // TODO
+    unary_expr: $ => choice(
+      prec(0, seq("-", $.expression)),
+      prec(0, seq("*", $.expression)),
+      prec(0, seq("&", $.expression)),
+      prec(0, seq("!", $.expression)),
+      prec(0, seq("~", $.expression)),
+    ),
+
     binary_expr: $ => choice(
-      prec.left(1, seq($.expression, "==", $.expression)),
-      prec.left(1, seq($.expression, "!=", $.expression)),
-      prec.left(2, seq($.expression, "+", $.expression)),
-      prec.left(3, seq($.expression, "*", $.expression)),
+      prec.left(1, seq($.expression, "||", $.expression)),
+      prec.left(2, seq($.expression, "&&", $.expression)),
+      prec.left(3, seq($.expression, "==", $.expression)),
+      prec.left(3, seq($.expression, "!=", $.expression)),
+      prec.left(4, seq($.expression, "|", $.expression)),
+      prec.left(5, seq($.expression, "^", $.expression)),
+      prec.left(6, seq($.expression, "&", $.expression)),
+      prec.left(7, seq($.expression, ">>", $.expression)),
+      prec.left(7, seq($.expression, "<<", $.expression)),
+      prec.left(8, seq($.expression, "+", $.expression)),
+      prec.left(8, seq($.expression, "-", $.expression)),
+      prec.left(9, seq($.expression, "*", $.expression)),
+      prec.left(9, seq($.expression, "/", $.expression)),
     ),
 
     call: $ => seq(
@@ -179,7 +196,8 @@ export default grammar({
       seq($.identifier, $.generics)
     ),
 
-    string: $ => /\"[^\"]*\"/,
+    string: $ => /\"([^\"]|\\\")*\"/,
+    char: $ => /\'([^']|\\\')\'/,
 
     number: $ => /([1-9][0-9]*)|0/,
 
