@@ -7,7 +7,11 @@ use crate::ast::{
 use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
 use crate::parser::parse;
+
+use std::path::PathBuf;
 use std::range::Range;
+
+use clap::Parser;
 
 mod ast;
 mod interpreter;
@@ -36,24 +40,54 @@ fn int_lit(value: i128) -> Expr {
     }))
 }
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    tokenise: bool,
+
+    #[arg(short, long)]
+    ast: bool,
+
+    #[arg(required_unless_present("expr"))]
+    input_file: Option<PathBuf>,
+
+    #[arg(short, long, conflicts_with("input_file"))]
+    expr: Option<String>,
+}
+
 fn main() {
-    // println!(
-    //     "{:?}",
-    //     tokenise(
-    //         r#"f foo bar 0b101011 -0x3276f "hi\n" '\'' "\\\"rteahsie\nah" // no more tokens :3
-    //         oh ho "#
-    //     )
-    // )
+    let args = Args::parse();
 
-    println!(
-        "{:?}",
-        parse(
-            &tokenise(r#"s Person { name: S, age: I } f main() { l person = "stackotter"; }"#)
-                .unwrap()
-        )
-    );
+    let expr = args
+        .input_file
+        .map(|path| std::fs::read_to_string(path).unwrap())
+        .or(args.expr)
+        .unwrap();
 
-    println!("{:?}", tokenise("f foo bar 0b101011 -0x3276f"));
+    let tokens = match tokenise(&expr) {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            eprintln!("{e:?}");
+            return;
+        }
+    };
+
+    if args.tokenise {
+        println!("{tokens:#?}");
+    }
+
+    let ast = match parse(&tokens) {
+        Ok(ast) => ast,
+        Err(e) => {
+            eprintln!("{e:?}");
+            return;
+        }
+    };
+
+    if args.ast {
+        println!("{ast:#?}");
+    }
 
     let ast = Ast {
         decls: vec![

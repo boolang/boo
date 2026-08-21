@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+clap = { version = "4.6.6", features = ["derive"] }
 winnow = "1.0.4"
