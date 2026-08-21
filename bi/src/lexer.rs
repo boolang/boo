@@ -26,9 +26,17 @@ pub struct Token {
 #[derive(Clone, Debug)]
 pub enum TokenKind {
     Id(String),
+    KBreak,
+    KContinue,
+    KElse,
     KFunction,
+    KIf,
+    KLet,
+    KMatch,
     KStruct,
     KType,
+    KVar,
+    KWhile,
     OpenPar,
     ClosePar,
     OpenBracket,
@@ -58,9 +66,17 @@ fn ident<'i>(input: &mut LocatingSlice<&'i str>) -> winnow::Result<&'i str> {
 
 fn keyword(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     dispatch! {ident;
+        "b" => empty.value(TokenKind::KBreak),
+        "c" => empty.value(TokenKind::KContinue),
+        "e" => empty.value(TokenKind::KElse),
         "f" => empty.value(TokenKind::KFunction),
+        "i" => empty.value(TokenKind::KIf),
+        "l" => empty.value(TokenKind::KLet),
+        "m" => empty.value(TokenKind::KMatch),
         "s" => empty.value(TokenKind::KStruct),
         "t" => empty.value(TokenKind::KType),
+        "v" => empty.value(TokenKind::KVar),
+        "w" => empty.value(TokenKind::KWhile),
         id => empty.value(TokenKind::Id(id.to_owned())),
     }
     .with_span()

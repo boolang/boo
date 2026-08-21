@@ -79,7 +79,7 @@ o
 p
 q
 r => return
-s
+s => struct
 t => type (enum)
 u
 v => var (mutable variable)
