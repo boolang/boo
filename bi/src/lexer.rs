@@ -1,19 +1,19 @@
 use winnow::LocatingSlice;
 use winnow::Parser;
-use winnow::ascii::alpha1;
 use winnow::ascii::digit1;
 use winnow::ascii::escaped;
 use winnow::ascii::hex_digit1;
-use winnow::ascii::multispace0;
+use winnow::ascii::multispace1;
 use winnow::ascii::oct_digit1;
+use winnow::ascii::till_line_ending;
 use winnow::combinator::alt;
 use winnow::combinator::delimited;
 use winnow::combinator::dispatch;
 use winnow::combinator::empty;
 use winnow::combinator::fail;
 use winnow::combinator::opt;
-use winnow::combinator::preceded;
 use winnow::combinator::repeat;
+use winnow::combinator::seq;
 use winnow::combinator::terminated;
 use winnow::combinator::trace;
 use winnow::error::ContextError;
@@ -57,7 +57,15 @@ pub enum TokenKind {
 }
 
 pub fn tokenise(input: &str) -> Result<Vec<Token>, ParseError<LocatingSlice<&str>, ContextError>> {
-    repeat(0.., terminated(token, multispace0)).parse(LocatingSlice::new(input))
+    repeat(0.., terminated(token, anyspace)).parse(LocatingSlice::new(input))
+}
+
+fn anyspace(input: &mut LocatingSlice<&str>) -> winnow::Result<()> {
+    repeat(
+        0..,
+        alt((multispace1.void(), seq!("//", till_line_ending).void())),
+    )
+    .parse_next(input)
 }
 
 fn token(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
@@ -89,8 +97,8 @@ fn keyword(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         id => empty.value(TokenKind::Id(id.to_owned())),
     }
     .with_span()
-    .map(|(kind, span)| Token {
-        kind,
+    .map(|(value, span)| Token {
+        value,
         span: span.into(),
     })
     .parse_next(input)
@@ -109,8 +117,8 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         _ => fail,
     }
     .with_span()
-    .map(|(kind, span)| Token {
-        kind,
+    .map(|(value, span)| Token {
+        value,
         span: span.into(),
     })
     .parse_next(input)
@@ -122,7 +130,7 @@ fn number(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     alt((prefixed_integer, dec_integer))
         .with_span()
         .map(|(i, span)| Token {
-            kind: TokenKind::Int(if sign == Some('-') { -i } else { i }),
+            value: TokenKind::Int(if sign == Some('-') { -i } else { i }),
             span: span.into(),
         })
         .parse_next(input)
@@ -160,7 +168,7 @@ fn string(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     )
     .with_span()
     .map(|(s, span): (String, _)| Token {
-        kind: TokenKind::String(s),
+        value: TokenKind::String(s),
         span: span.into(),
     })
     .parse_next(input)
@@ -180,7 +188,7 @@ fn chr(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     )
     .with_span()
     .map(|(c, span)| Token {
-        kind: TokenKind::Char(c),
+        value: TokenKind::Char(c),
         span: span.into(),
     })
     .parse_next(input)

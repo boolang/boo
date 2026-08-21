@@ -4,8 +4,8 @@ pub type Span = Range<usize>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Rich<T> {
-    value: T,
-    span: Span,
+    pub value: T,
+    pub span: Span,
 }
 
 pub type Ident = Rich<String>;
