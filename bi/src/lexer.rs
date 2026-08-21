@@ -25,16 +25,27 @@ use winnow::token::one_of;
 use winnow::token::take;
 use winnow::token::take_while;
 
-use crate::ast::Rich;
+use crate::ast::Span;
 
-pub type Token = Rich<TokenKind>;
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub value: String,
+    pub span: Span,
+}
+
+impl PartialEq<TokenKind> for Token {
+    fn eq(&self, other: &TokenKind) -> bool {
+        self.kind == *other
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TokenKind {
-    Id(String),
-    Int(i128),
-    Char(char),
-    String(String),
+    Id,
+    Int,
+    Char,
+    String,
     KBreak,
     KContinue,
     KElse,
@@ -94,11 +105,13 @@ fn keyword(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         "t" => empty.value(TokenKind::KType),
         "v" => empty.value(TokenKind::KVar),
         "w" => empty.value(TokenKind::KWhile),
-        id => empty.value(TokenKind::Id(id.to_owned())),
+        _ => empty.value(TokenKind::Id),
     }
+    .with_taken()
     .with_span()
-    .map(|(value, span)| Token {
-        value,
+    .map(|((kind, value), span)| Token {
+        kind,
+        value: value.to_owned(),
         span: span.into(),
     })
     .parse_next(input)
@@ -117,8 +130,9 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         _ => fail,
     }
     .with_span()
-    .map(|(value, span)| Token {
-        value,
+    .map(|(kind, span)| Token {
+        kind,
+        value: String::new(),
         span: span.into(),
     })
     .parse_next(input)
@@ -130,7 +144,16 @@ fn number(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     alt((prefixed_integer, dec_integer))
         .with_span()
         .map(|(i, span)| Token {
-            value: TokenKind::Int(if sign == Some('-') { -i } else { i }),
+            kind: TokenKind::Int,
+            value: {
+                let mut s = if sign == Some('-') {
+                    "-".to_owned()
+                } else {
+                    String::new()
+                };
+                s.push_str(&i.to_string());
+                s
+            },
             span: span.into(),
         })
         .parse_next(input)
@@ -168,7 +191,8 @@ fn string(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     )
     .with_span()
     .map(|(s, span): (String, _)| Token {
-        value: TokenKind::String(s),
+        kind: TokenKind::String,
+        value: s,
         span: span.into(),
     })
     .parse_next(input)
@@ -188,7 +212,8 @@ fn chr(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
     )
     .with_span()
     .map(|(c, span)| Token {
-        value: TokenKind::Char(c),
+        kind: TokenKind::Char,
+        value: c.to_string(),
         span: span.into(),
     })
     .parse_next(input)

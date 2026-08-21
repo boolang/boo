@@ -29,8 +29,8 @@ pub type StringLiteral = Rich<String>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct SimpleType {
-    ident: Ident,
-    generic_parameters: Vec<Type>,
+    pub ident: Ident,
+    pub generic_parameters: Vec<Type>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -43,8 +43,8 @@ pub enum Type {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FunctionCallExpr {
-    ident: Ident,
-    arguments: Vec<Expr>,
+    pub ident: Ident,
+    pub arguments: Vec<Expr>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -59,39 +59,39 @@ pub enum Expr {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct IfBlock {
-    condition: Expr,
-    stmts: Vec<Stmt>,
+    pub condition: Expr,
+    pub stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ElseBlock {
-    stmts: Vec<Stmt>,
+    pub stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct IfStmt {
-    if_blocks: Vec<IfBlock>,
-    else_block: ElseBlock,
+    pub if_blocks: Vec<IfBlock>,
+    pub else_block: ElseBlock,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WhileStmt {
-    condition: Expr,
-    stmts: Vec<Stmt>,
+    pub condition: Expr,
+    pub stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct VarDecl {
-    mutable: bool,
-    ident: Ident,
-    ty: Option<Type>,
-    value: Option<Expr>,
+    pub mutable: bool,
+    pub ident: Ident,
+    pub ty: Option<Type>,
+    pub value: Option<Expr>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AssignmentStmt {
-    ident: Ident,
-    value: Expr,
+    pub ident: Ident,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -106,44 +106,44 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Field {
-    ident: Ident,
-    ty: Type,
+    pub ident: Ident,
+    pub ty: Type,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Struct {
-    ident: Ident,
-    fields: Vec<Field>,
+    pub ident: Ident,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Case {
-    ident: Ident,
-    ty: Option<Type>,
+    pub ident: Ident,
+    pub ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Enum {
-    ident: Ident,
-    cases: Vec<Case>,
+    pub ident: Ident,
+    pub cases: Vec<Case>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Parameter {
-    label: Ident,
-    ty: Type,
+    pub label: Ident,
+    pub ty: Type,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FunctionSignature {
-    ident: Ident,
-    parameters: Vec<Parameter>,
+    pub ident: Ident,
+    pub parameters: Vec<Parameter>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Function {
-    signature: FunctionSignature,
-    stmts: Vec<Stmt>,
+    pub signature: FunctionSignature,
+    pub stmts: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -157,5 +157,5 @@ pub enum Decl {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Ast {
-    decls: Vec<Decl>,
+    pub decls: Vec<Decl>,
 }
