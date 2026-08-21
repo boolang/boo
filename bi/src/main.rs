@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use crate::ast::{
-    Ast, Decl, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident, LiteralExpr,
-    MemberAccessExpr, Rich, SimpleType, Stmt, StringLiteral, Struct, StructInitArgument,
-    StructInitExpr, Type, VarDecl,
+    AssignmentStmt, Ast, Decl, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident,
+    LExpr, LiteralExpr, MemberAccessExpr, MemberLExpr, Rich, SimpleType, Stmt, Struct,
+    StructInitArgument, StructInitExpr, Type, VarDecl,
 };
 use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
@@ -47,6 +47,8 @@ fn main() {
 
     println!("{:?}", parse(&tokenise("s Foo {}").unwrap()));
 
+    println!("{:?}", tokenise("f foo bar 0b101011 -0x3276f"));
+
     let ast = Ast {
         decls: vec![
             Decl::Struct(Struct {
@@ -70,7 +72,7 @@ fn main() {
                 },
                 stmts: vec![
                     Stmt::VarDecl(VarDecl {
-                        mutable: false,
+                        mutable: true,
                         ident: ident("person"),
                         ty: None,
                         value: Some(Expr::StructInit(StructInitExpr {
@@ -94,6 +96,20 @@ fn main() {
                             member: ident("name"),
                         }))],
                     })),
+                    Stmt::Assignment(AssignmentStmt {
+                        lexpr: LExpr::Member(Box::new(MemberLExpr {
+                            base: LExpr::Ident(ident("person")),
+                            member: ident("name"),
+                        })),
+                        value: str_lit("bpaul"),
+                    }),
+                    Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
+                        ident: ident("print"),
+                        arguments: vec![Expr::MemberAccess(Box::new(MemberAccessExpr {
+                            base: Expr::Ident(ident("person")),
+                            member: ident("name"),
+                        }))],
+                    })),
                 ],
             }),
         ],
@@ -106,6 +122,4 @@ fn main() {
     });
 
     interpreter.eval_fn("main", vec![]).unwrap();
-
-    println!("{:?}", tokenise("f foo bar 0b101011 -0x3276f"))
 }

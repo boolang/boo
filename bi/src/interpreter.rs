@@ -2,8 +2,8 @@ use std::range::Range;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
-    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LiteralExpr, Parameter, SimpleType,
-    Stmt, Struct, StructInitExpr, Type,
+    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LExpr, LiteralExpr, Parameter,
+    SimpleType, Stmt, Struct, StructInitExpr, Type,
 };
 use anyhow::{Result, anyhow};
 
@@ -50,6 +50,20 @@ impl Value {
         match &self {
             Value::String(value) => Ok(value.clone()),
             _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_struct(&self) -> Result<StructValue> {
+        match &self {
+            Value::Struct(value) => Ok(value.clone()),
+            _ => Err(anyhow!("Expected struct, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_struct_mut(&mut self) -> Result<&mut StructValue> {
+        match self {
+            Value::Struct(value) => Ok(value),
+            _ => Err(anyhow!("Expected struct, got {}", self.infer_type())),
         }
     }
 }
@@ -129,8 +143,38 @@ impl Context {
                         variable.ty
                     ));
                 }
+                if !variable.mutable {
+                    return Err(anyhow!(
+                        "Attempted to mutate immutable variable '{}'",
+                        ident
+                    ));
+                }
                 variable.value = Some(new_value);
                 return Ok(());
+            }
+        }
+        Err(anyhow!("No such variable '{}' in current context", ident))
+    }
+
+    fn get_variable_mut(&mut self, ident: &str) -> Result<&mut Value> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(variable) = scope.variables.get_mut(ident) {
+                if !variable.mutable {
+                    return Err(anyhow!(
+                        "Attempted to mutate immutable variable '{}'",
+                        ident
+                    ));
+                }
+
+                match &mut variable.value {
+                    Some(value) => return Ok(value),
+                    None => {
+                        return Err(anyhow!(
+                            "Attempted to get mutable reference to uninitialized variable '{}' (likely through a member access)",
+                            ident
+                        ));
+                    }
+                }
             }
         }
         Err(anyhow!("No such variable '{}' in current context", ident))
@@ -368,7 +412,16 @@ impl Interpreter {
             }
             Stmt::Assignment(assignment) => {
                 let value = self.eval_expr(&assignment.value)?;
-                self.context.set_variable(&assignment.ident.value, value)?;
+                let target = self.resolve_lexpr(&assignment.lexpr)?;
+                if target.infer_type() != value.infer_type() {
+                    return Err(anyhow!(
+                        "Attempted to assign value of type {} to {} (which has type {})",
+                        value.infer_type(),
+                        assignment.lexpr,
+                        target.infer_type()
+                    ));
+                }
+                *target = value;
             }
             Stmt::If(if_stmt) => {
                 for if_block in &if_stmt.if_blocks {
@@ -418,6 +471,26 @@ impl Interpreter {
         Ok(None)
     }
 
+    fn resolve_lexpr(&mut self, lexpr: &LExpr) -> Result<&mut Value> {
+        match lexpr {
+            LExpr::Ident(ident) => self.context.get_variable_mut(&ident.value),
+            LExpr::Member(member) => {
+                let base = self.resolve_lexpr(&member.base)?;
+                let base_struct = base.as_struct_mut()?;
+                let ty = base_struct.ty();
+                base_struct
+                    .value
+                    .get_mut(&member.member.value)
+                    .ok_or(anyhow!(
+                        "Value of type '{}' doesn't have member '{}' (at {:?})",
+                        ty,
+                        member.member.value,
+                        member.member.span
+                    ))
+            }
+        }
+    }
+
     fn eval_condition(&mut self, condition: &Expr) -> Result<bool> {
         let condition = self.eval_expr(condition)?;
         let condition_value = match condition {
@@ -443,15 +516,7 @@ impl Interpreter {
             Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
             Expr::MemberAccess(member_access) => {
                 let base_value = self.eval_expr(&member_access.base)?;
-                let struct_value = match base_value {
-                    Value::Struct(value) => value,
-                    _ => {
-                        return Err(anyhow!(
-                            "Base value of member access must be a struct, got a value of type '{}'",
-                            base_value.infer_type()
-                        ));
-                    }
-                };
+                let struct_value = base_value.as_struct()?;
 
                 match struct_value.value.get(&member_access.member.value) {
                     Some(value) => Ok(value.clone()),

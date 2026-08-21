@@ -89,6 +89,31 @@ pub enum Expr {
     StructInit(StructInitExpr),
 }
 
+// MARK: LExpressions (assignment targets)
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum LExpr {
+    Ident(Ident),
+    Member(Box<MemberLExpr>),
+}
+
+impl Display for LExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ident(ident) => f.write_str(&ident.value),
+            Self::Member(member) => {
+                f.write_str(&format!("{}.{}", member.base, member.member.value))
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct MemberLExpr {
+    pub base: LExpr,
+    pub member: Ident,
+}
+
 // MARK: Statements
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -124,7 +149,7 @@ pub struct VarDecl {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AssignmentStmt {
-    pub ident: Ident,
+    pub lexpr: LExpr,
     pub value: Expr,
 }
 
