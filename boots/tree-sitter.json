@@ -1,0 +1,42 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "boots",
+      "camelcase": "Boots",
+      "title": "Boots",
+      "scope": "source.boots",
+      "file-types": [
+        "boo"
+      ],
+      "injection-regex": "^boots$",
+      "class-name": "TreeSitterBoots"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "boo tree sitter grammar",
+    "authors": [
+      {
+        "name": "a",
+        "email": "a",
+        "url": "a"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/boolang/boo",
+      "funding": ""
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": false,
+    "java": false,
+    "node": false,
+    "python": false,
+    "rust": false,
+    "swift": false,
+    "zig": false
+  }
+}
