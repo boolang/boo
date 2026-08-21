@@ -63,6 +63,8 @@ pub enum TokenKind {
     CloseBracket,
     OpenBrace,
     CloseBrace,
+    Colon,
+    Comma,
     Equals,
     Bang,
 }
@@ -127,6 +129,8 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         '}' => empty.value(TokenKind::CloseBrace),
         '=' => empty.value(TokenKind::Equals),
         '!' => empty.value(TokenKind::Bang),
+        ':' => empty.value(TokenKind::Colon),
+        ',' => empty.value(TokenKind::Comma),
         _ => fail,
     }
     .with_span()
