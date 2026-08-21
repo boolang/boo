@@ -2,12 +2,12 @@ use winnow::Parser;
 use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated, seq, terminated};
 use winnow::error::{ContextError, ParseError};
 use winnow::stream::TokenSlice;
-use winnow::token::literal;
+use winnow::token::{literal, one_of};
 
 use crate::ast::{
-    AssignmentStmt, Ast, Case, Decl, Enum, Expr, Field, Function, FunctionCallExpr,
-    FunctionSignature, IfStmt, LiteralExpr, Parameter, Rich, SimpleType, Stmt, Struct, Type,
-    VarDecl, WhileStmt,
+    AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field, Function, FunctionCallExpr,
+    FunctionSignature, IfBlock, IfStmt, LiteralExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt,
+    Struct, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -137,19 +137,67 @@ fn stmt(input: &mut TokenSlice<Token>) -> winnow::Result<Stmt> {
 }
 
 fn r#if(input: &mut TokenSlice<Token>) -> winnow::Result<IfStmt> {
-    todo!()
+    seq!(
+        _: literal(TokenKind::KIf),
+        separated(
+            1..,
+            (delimited(literal(TokenKind::OpenPar), expr, literal(TokenKind::ClosePar)), block)
+                .map(|(condition, stmts)| IfBlock { condition, stmts }),
+            (literal(TokenKind::KElse), literal(TokenKind::KIf)),
+        ),
+        opt(preceded(
+            literal(TokenKind::KElse),
+            block.map(|stmts| ElseBlock { stmts })
+        ))
+    )
+    .map(|(if_blocks, else_block)| IfStmt {
+        if_blocks,
+        else_block,
+    })
+    .parse_next(input)
 }
 
 fn r#while(input: &mut TokenSlice<Token>) -> winnow::Result<WhileStmt> {
-    todo!()
+    preceded(
+        literal(TokenKind::KWhile),
+        (
+            delimited(
+                literal(TokenKind::OpenPar),
+                expr,
+                literal(TokenKind::ClosePar),
+            ),
+            block,
+        ),
+    )
+    .map(|(condition, stmts)| WhileStmt { condition, stmts })
+    .parse_next(input)
 }
 
 fn var_decl(input: &mut TokenSlice<Token>) -> winnow::Result<VarDecl> {
-    todo!()
+    seq!(
+        one_of(|t: &Token| *t == TokenKind::KLet || *t == TokenKind::KVar),
+        ident,
+        opt(preceded(literal(TokenKind::Colon), r#type)),
+        opt(preceded(literal(TokenKind::Equals), expr)),
+        _: literal(TokenKind::Semicolon),
+    )
+    .map(|(mutable, ident, ty, value)| VarDecl {
+        mutable: *mutable == TokenKind::KVar,
+        ident,
+        ty,
+        value,
+    })
+    .parse_next(input)
 }
 
 fn assignment(input: &mut TokenSlice<Token>) -> winnow::Result<AssignmentStmt> {
-    todo!()
+    seq!(
+        place_expr,
+        _: literal(TokenKind::Equals),
+        expr,
+    )
+    .map(|(place, value)| AssignmentStmt { place, value })
+    .parse_next(input)
 }
 
 fn expr_stmt(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
@@ -184,6 +232,11 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
         function_call.map(Expr::FunctionCall),
     ))
     .parse_next(input)
+}
+
+fn place_expr(input: &mut TokenSlice<Token>) -> winnow::Result<PlaceExpr> {
+    // TODO
+    alt((ident.map(PlaceExpr::Ident),)).parse_next(input)
 }
 
 fn e_ident(input: &mut TokenSlice<Token>) -> winnow::Result<LiteralExpr> {

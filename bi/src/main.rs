@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::ast::{
     AssignmentStmt, Ast, Decl, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident,
-    LExpr, LiteralExpr, MemberAccessExpr, MemberLExpr, Rich, SimpleType, Stmt, Struct,
+    LiteralExpr, MemberAccessExpr, MemberPlaceExpr, PlaceExpr, Rich, SimpleType, Stmt, Struct,
     StructInitArgument, StructInitExpr, Type, VarDecl,
 };
 use crate::interpreter::{Interpreter, Value};
@@ -45,7 +45,13 @@ fn main() {
     //     )
     // )
 
-    println!("{:?}", parse(&tokenise("s Foo {}").unwrap()));
+    println!(
+        "{:?}",
+        parse(
+            &tokenise(r#"s Person { name: S, age: I } f main() { l person = "stackotter"; }"#)
+                .unwrap()
+        )
+    );
 
     println!("{:?}", tokenise("f foo bar 0b101011 -0x3276f"));
 
@@ -97,8 +103,8 @@ fn main() {
                         }))],
                     })),
                     Stmt::Assignment(AssignmentStmt {
-                        lexpr: LExpr::Member(Box::new(MemberLExpr {
-                            base: LExpr::Ident(ident("person")),
+                        place: PlaceExpr::Member(Box::new(MemberPlaceExpr {
+                            base: PlaceExpr::Ident(ident("person")),
                             member: ident("name"),
                         })),
                         value: str_lit("bpaul"),

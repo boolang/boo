@@ -89,15 +89,15 @@ pub enum Expr {
     StructInit(StructInitExpr),
 }
 
-// MARK: LExpressions (assignment targets)
+// MARK: Place Expressions (assignment targets)
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum LExpr {
+pub enum PlaceExpr {
     Ident(Ident),
-    Member(Box<MemberLExpr>),
+    Member(Box<MemberPlaceExpr>),
 }
 
-impl Display for LExpr {
+impl Display for PlaceExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Ident(ident) => f.write_str(&ident.value),
@@ -109,8 +109,8 @@ impl Display for LExpr {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct MemberLExpr {
-    pub base: LExpr,
+pub struct MemberPlaceExpr {
+    pub base: PlaceExpr,
     pub member: Ident,
 }
 
@@ -149,7 +149,7 @@ pub struct VarDecl {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AssignmentStmt {
-    pub lexpr: LExpr,
+    pub place: PlaceExpr,
     pub value: Expr,
 }
 

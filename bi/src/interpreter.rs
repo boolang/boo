@@ -2,7 +2,7 @@ use std::range::Range;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
-    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LExpr, LiteralExpr, Parameter,
+    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr,
     SimpleType, Stmt, Struct, StructInitExpr, Type,
 };
 use anyhow::{Result, anyhow};
@@ -412,12 +412,12 @@ impl Interpreter {
             }
             Stmt::Assignment(assignment) => {
                 let value = self.eval_expr(&assignment.value)?;
-                let target = self.resolve_lexpr(&assignment.lexpr)?;
+                let target = self.resolve_lexpr(&assignment.place)?;
                 if target.infer_type() != value.infer_type() {
                     return Err(anyhow!(
                         "Attempted to assign value of type {} to {} (which has type {})",
                         value.infer_type(),
-                        assignment.lexpr,
+                        assignment.place,
                         target.infer_type()
                     ));
                 }
@@ -471,10 +471,10 @@ impl Interpreter {
         Ok(None)
     }
 
-    fn resolve_lexpr(&mut self, lexpr: &LExpr) -> Result<&mut Value> {
+    fn resolve_lexpr(&mut self, lexpr: &PlaceExpr) -> Result<&mut Value> {
         match lexpr {
-            LExpr::Ident(ident) => self.context.get_variable_mut(&ident.value),
-            LExpr::Member(member) => {
+            PlaceExpr::Ident(ident) => self.context.get_variable_mut(&ident.value),
+            PlaceExpr::Member(member) => {
                 let base = self.resolve_lexpr(&member.base)?;
                 let base_struct = base.as_struct_mut()?;
                 let ty = base_struct.ty();
