@@ -3,11 +3,16 @@ use std::range::Range;
 use winnow::LocatingSlice;
 use winnow::Parser;
 use winnow::ascii::alpha1;
+use winnow::ascii::digit1;
+use winnow::ascii::hex_digit1;
 use winnow::ascii::multispace0;
+use winnow::ascii::oct_digit1;
 use winnow::combinator::alt;
 use winnow::combinator::dispatch;
 use winnow::combinator::empty;
 use winnow::combinator::fail;
+use winnow::combinator::opt;
+use winnow::combinator::preceded;
 use winnow::combinator::repeat;
 use winnow::combinator::terminated;
 use winnow::error::ContextError;
@@ -15,6 +20,7 @@ use winnow::error::ParseError;
 use winnow::stream::AsChar;
 use winnow::token::any;
 use winnow::token::one_of;
+use winnow::token::take;
 use winnow::token::take_while;
 
 #[derive(Clone, Debug)]
@@ -26,6 +32,7 @@ pub struct Token {
 #[derive(Clone, Debug)]
 pub enum TokenKind {
     Id(String),
+    Int(i128),
     KBreak,
     KContinue,
     KElse,
@@ -52,7 +59,7 @@ pub fn tokenise(input: &str) -> Result<Vec<Token>, ParseError<LocatingSlice<&str
 }
 
 fn token(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
-    alt((keyword, sym)).parse_next(input)
+    alt((keyword, number, sym)).parse_next(input)
 }
 
 fn ident<'i>(input: &mut LocatingSlice<&'i str>) -> winnow::Result<&'i str> {
@@ -105,4 +112,30 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
         span: span.into(),
     })
     .parse_next(input)
+}
+
+fn number(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
+    let sign = opt(one_of(('-', '+'))).parse_next(input)?;
+
+    alt((prefixed_integer, dec_integer))
+        .with_span()
+        .map(|(i, span)| Token {
+            kind: TokenKind::Int(if sign == Some('-') { -i } else { i }),
+            span: span.into(),
+        })
+        .parse_next(input)
+}
+
+fn prefixed_integer(input: &mut LocatingSlice<&str>) -> winnow::Result<i128> {
+    dispatch!(take(2usize);
+        "0b" => take_while(1.., '0'..='1').try_map(|s| i128::from_str_radix(s, 2)),
+        "0o" => oct_digit1.try_map(|s| i128::from_str_radix(s, 8)),
+        "0x" => hex_digit1.try_map(|s| i128::from_str_radix(s, 16)),
+        _ => fail,
+    )
+    .parse_next(input)
+}
+
+fn dec_integer(input: &mut LocatingSlice<&str>) -> winnow::Result<i128> {
+    digit1.parse_to::<i128>().parse_next(input)
 }
