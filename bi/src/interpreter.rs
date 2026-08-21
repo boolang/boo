@@ -1,6 +1,10 @@
-use std::collections::HashMap;
+use std::range::Range;
+use std::{collections::HashMap, sync::Arc};
 
-use crate::ast::{Ast, Decl, Enum, Expr, Function, LiteralExpr, Stmt, Struct};
+use crate::ast::{
+    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LiteralExpr, Parameter, SimpleType,
+    Stmt, Struct, Type,
+};
 use anyhow::{Result, anyhow};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -9,6 +13,24 @@ pub enum Value {
     Bool(bool),
     String(String),
     Unit,
+}
+
+impl Value {
+    fn ty(&self) -> &'static str {
+        match self {
+            Value::Int(_) => "I",
+            Value::Bool(_) => "B",
+            Value::String(_) => "S",
+            Value::Unit => "U",
+        }
+    }
+
+    pub fn as_string(&self) -> Result<String> {
+        match &self {
+            Value::String(value) => Ok(value.clone()),
+            _ => Err(anyhow!("Expected S, got {}", self.ty())),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -101,12 +123,29 @@ impl Context {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+type BuiltinFunctionBody = Arc<dyn Fn(Vec<Value>) -> Result<Value>>;
+
+#[derive(Clone)]
+struct BuiltinFunction {
+    signature: FunctionSignature,
+    body: BuiltinFunctionBody,
+}
+
+impl std::fmt::Debug for BuiltinFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuiltinFunction")
+            .field("signature", &self.signature)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Interpreter {
     functions: Vec<Function>,
     structs: Vec<Struct>,
     enums: Vec<Enum>,
     context: Context,
+    builtins: HashMap<String, BuiltinFunction>,
 }
 
 enum Action {
@@ -143,40 +182,92 @@ impl Interpreter {
                 })
                 .collect(),
             context: Context::new(),
+            builtins: HashMap::new(),
         }
     }
 
+    pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(
+        &mut self,
+        ident: &str,
+        parameters: Vec<(&'static str, &'static str)>,
+        body: F,
+    ) {
+        self.builtins.insert(
+            String::from(ident),
+            BuiltinFunction {
+                signature: FunctionSignature {
+                    ident: Ident::new(ident.into(), Range { start: 0, end: 0 }),
+                    parameters: parameters
+                        .iter()
+                        .map(|(label, ty)| Parameter {
+                            label: Ident::new((*label).into(), Range { start: 0, end: 0 }),
+                            ty: Type::Simple(SimpleType {
+                                ident: Ident::new((*ty).into(), Range { start: 0, end: 0 }),
+                                generic_parameters: vec![],
+                            }),
+                        })
+                        .collect(),
+                },
+                body: Arc::new(body),
+            },
+        );
+    }
+
     pub fn eval_fn(&mut self, ident: &str, arguments: Vec<Value>) -> Result<Value> {
-        let function = match self
+        enum Body<'r> {
+            Stmts(&'r Vec<Stmt>),
+            Builtin(BuiltinFunctionBody),
+        }
+
+        let (signature, body) = match self
             .functions
             .iter()
             .find(|f| f.signature.ident.value == ident)
         {
-            Some(f) => f,
-            None => return Err(anyhow!("No such function {}", ident)),
-        }
-        .clone();
+            Some(f) => (f.signature.clone(), Body::Stmts(&f.stmts)),
+            None => match self.builtins.get(ident) {
+                Some(builtin) => (
+                    builtin.signature.clone(),
+                    Body::Builtin(builtin.body.clone()),
+                ),
+                None => return Err(anyhow!("No such function {}", ident)),
+            },
+        };
 
-        if function.signature.parameters.len() != arguments.len() {
+        if signature.parameters.len() != arguments.len() {
             return Err(anyhow!(
                 "{} expected {} parameters, got {}",
                 ident,
-                function.signature.parameters.len(),
+                signature.parameters.len(),
                 arguments.len()
             ));
         }
 
-        let caller_context = self.context.clone();
+        let action = match body {
+            Body::Stmts(stmts) => {
+                let caller_context = self.context.clone();
 
-        self.context = Context::new();
-        for (param, arg) in function.signature.parameters.iter().zip(arguments) {
-            self.context
-                .new_variable(&param.label.value, false, Some(arg))?;
+                self.context = Context::new();
+                for (param, arg) in signature.parameters.iter().zip(arguments) {
+                    self.context
+                        .new_variable(&param.label.value, false, Some(arg))?;
+                }
+
+                let action = self.exec_block(&stmts.clone(), false)?;
+
+                self.context = caller_context;
+
+                action
+            }
+            Body::Builtin(body) => Some(Action::Return(body(arguments)?)),
+        };
+
+        match action {
+            Some(Action::Break) => Err(anyhow!("break made it to top level of function??")),
+            Some(Action::Continue) => Err(anyhow!("continue made it to top level of function??")),
+            Some(Action::Return(value)) => Ok(value),
+            None => Ok(Value::Unit),
         }
-        self.exec_block(&function.stmts, false)?;
-
-        self.context = caller_context;
-        Ok(Value::Unit)
     }
 
     fn exec_block(&mut self, stmts: &[Stmt], is_loop: bool) -> Result<Option<Action>> {

@@ -3,7 +3,7 @@ use crate::ast::{
     Ast, Decl, Expr, Function, FunctionCallExpr, FunctionSignature, Ident, LiteralExpr, Stmt,
     StringLiteral,
 };
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
 use crate::parser::parse;
 use std::range::Range;
@@ -40,7 +40,13 @@ fn main() {
             }))],
         })],
     };
+
     let mut interpreter = Interpreter::new(ast);
+    interpreter.register_builtin("print", vec![("string", "S")], |arguments| {
+        println!("{}", arguments[0].as_string()?);
+        Ok(Value::Unit)
+    });
+
     interpreter.eval_fn("main", vec![]).unwrap();
 
     println!("{:?}", tokenise("f foo bar 0b101011 -0x3276f"))
