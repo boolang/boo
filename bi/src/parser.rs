@@ -5,8 +5,9 @@ use winnow::stream::TokenSlice;
 use winnow::token::literal;
 
 use crate::ast::{
-    Ast, Case, Decl, Enum, Expr, Field, Function, FunctionCallExpr, FunctionSignature, LiteralExpr,
-    Parameter, Rich, SimpleType, Stmt, Struct, Type,
+    AssignmentStmt, Ast, Case, Decl, Enum, Expr, Field, Function, FunctionCallExpr,
+    FunctionSignature, IfStmt, LiteralExpr, Parameter, Rich, SimpleType, Stmt, Struct, Type,
+    VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -121,7 +122,50 @@ fn block(input: &mut TokenSlice<Token>) -> winnow::Result<Vec<Stmt>> {
 }
 
 fn stmt(input: &mut TokenSlice<Token>) -> winnow::Result<Stmt> {
-    alt((r#return.map(Stmt::Return), expr_stmt.map(Stmt::Expr))).parse_next(input)
+    // TODO
+    alt((
+        r#if.map(Stmt::If),
+        r#while.map(Stmt::While),
+        var_decl.map(Stmt::VarDecl),
+        assignment.map(Stmt::Assignment),
+        expr_stmt.map(Stmt::Expr),
+        r#break.map(|_| Stmt::Break),
+        r#continue.map(|_| Stmt::Continue),
+        r#return.map(Stmt::Return),
+    ))
+    .parse_next(input)
+}
+
+fn r#if(input: &mut TokenSlice<Token>) -> winnow::Result<IfStmt> {
+    todo!()
+}
+
+fn r#while(input: &mut TokenSlice<Token>) -> winnow::Result<WhileStmt> {
+    todo!()
+}
+
+fn var_decl(input: &mut TokenSlice<Token>) -> winnow::Result<VarDecl> {
+    todo!()
+}
+
+fn assignment(input: &mut TokenSlice<Token>) -> winnow::Result<AssignmentStmt> {
+    todo!()
+}
+
+fn expr_stmt(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
+    terminated(expr, literal(TokenKind::Semicolon)).parse_next(input)
+}
+
+fn r#break(input: &mut TokenSlice<Token>) -> winnow::Result<()> {
+    terminated(literal(TokenKind::KBreak), literal(TokenKind::Semicolon))
+        .map(|_| ())
+        .parse_next(input)
+}
+
+fn r#continue(input: &mut TokenSlice<Token>) -> winnow::Result<()> {
+    terminated(literal(TokenKind::KContinue), literal(TokenKind::Semicolon))
+        .map(|_| ())
+        .parse_next(input)
 }
 
 fn r#return(input: &mut TokenSlice<Token>) -> winnow::Result<Option<Expr>> {
@@ -133,11 +177,8 @@ fn r#return(input: &mut TokenSlice<Token>) -> winnow::Result<Option<Expr>> {
     .parse_next(input)
 }
 
-fn expr_stmt(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
-    terminated(expr, literal(TokenKind::Semicolon)).parse_next(input)
-}
-
 fn expr(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
+    // TODO
     alt((
         e_ident.map(Expr::Literal),
         function_call.map(Expr::FunctionCall),
