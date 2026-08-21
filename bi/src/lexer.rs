@@ -4,10 +4,12 @@ use winnow::LocatingSlice;
 use winnow::Parser;
 use winnow::ascii::alpha1;
 use winnow::ascii::digit1;
+use winnow::ascii::escaped;
 use winnow::ascii::hex_digit1;
 use winnow::ascii::multispace0;
 use winnow::ascii::oct_digit1;
 use winnow::combinator::alt;
+use winnow::combinator::delimited;
 use winnow::combinator::dispatch;
 use winnow::combinator::empty;
 use winnow::combinator::fail;
@@ -15,10 +17,12 @@ use winnow::combinator::opt;
 use winnow::combinator::preceded;
 use winnow::combinator::repeat;
 use winnow::combinator::terminated;
+use winnow::combinator::trace;
 use winnow::error::ContextError;
 use winnow::error::ParseError;
 use winnow::stream::AsChar;
 use winnow::token::any;
+use winnow::token::none_of;
 use winnow::token::one_of;
 use winnow::token::take;
 use winnow::token::take_while;
@@ -33,6 +37,8 @@ pub struct Token {
 pub enum TokenKind {
     Id(String),
     Int(i128),
+    Char(char),
+    String(String),
     KBreak,
     KContinue,
     KElse,
@@ -59,7 +65,7 @@ pub fn tokenise(input: &str) -> Result<Vec<Token>, ParseError<LocatingSlice<&str
 }
 
 fn token(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
-    alt((keyword, number, sym)).parse_next(input)
+    alt((keyword, number, string, chr, sym)).parse_next(input)
 }
 
 fn ident<'i>(input: &mut LocatingSlice<&'i str>) -> winnow::Result<&'i str> {
@@ -127,15 +133,59 @@ fn number(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
 }
 
 fn prefixed_integer(input: &mut LocatingSlice<&str>) -> winnow::Result<i128> {
-    dispatch!(take(2usize);
-        "0b" => take_while(1.., '0'..='1').try_map(|s| i128::from_str_radix(s, 2)),
-        "0o" => oct_digit1.try_map(|s| i128::from_str_radix(s, 8)),
-        "0x" => hex_digit1.try_map(|s| i128::from_str_radix(s, 16)),
-        _ => fail,
+    trace(
+        "prefixed_integer",
+        dispatch!(take(2usize);
+            "0b" => take_while(1.., '0'..='1').try_map(|s| i128::from_str_radix(s, 2)),
+            "0o" => oct_digit1.try_map(|s| i128::from_str_radix(s, 8)),
+            "0x" => hex_digit1.try_map(|s| i128::from_str_radix(s, 16)),
+            _ => fail,
+        ),
     )
     .parse_next(input)
 }
 
 fn dec_integer(input: &mut LocatingSlice<&str>) -> winnow::Result<i128> {
-    digit1.parse_to::<i128>().parse_next(input)
+    trace("dec_integer", digit1.parse_to::<i128>()).parse_next(input)
+}
+
+fn string(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
+    trace(
+        "string_literal",
+        delimited(
+            '"',
+            escaped(
+                none_of(('\\', '"', '\u{80}'..)),
+                '\\',
+                alt(("\\".value("\\"), "\"".value("\""), "n".value("\n"))),
+            ),
+            '"',
+        ),
+    )
+    .with_span()
+    .map(|(s, span): (String, _)| Token {
+        kind: TokenKind::String(s),
+        span: span.into(),
+    })
+    .parse_next(input)
+}
+
+fn chr(input: &mut LocatingSlice<&str>) -> winnow::Result<Token> {
+    trace(
+        "char_literal",
+        delimited(
+            '\'',
+            dispatch! {any;
+                '\\' => any,
+                c => empty.value(c),
+            },
+            '\'',
+        ),
+    )
+    .with_span()
+    .map(|(c, span)| Token {
+        kind: TokenKind::Char(c),
+        span: span.into(),
+    })
+    .parse_next(input)
 }
