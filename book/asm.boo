@@ -32,6 +32,20 @@ t Reg {
     Rdi
 }
 
+f AW_idx(wr: AsmWriter) {
+    r S_len(wr.buf);
+}
+
+f AW_write(wr: &AsmWriter, data: S) {
+    wr.buf = S_concat(wr.buf, data);
+}
+
+f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
+    l idx = AW_idx(wr);
+    Map_insert(&wr.jumps, ident, idx);
+    AW_write(&wr, fn.asm);
+}
+
 f AW_emit_dummy_function_prelude(wr: &AsmWriter) {
     // Emit space for instructions to create stack frame and set
     // function_prelude_location

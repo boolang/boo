@@ -79,6 +79,14 @@ f kompile(ast: Ast) {
     }
 }
 
+f emit_builtins(ctx: &Ctx) {
+    l idx = 0;
+    w (lt(idx, Map_count<BuiltinFunction>(ctx.builtin_fns))) {
+        l entry = V_get<MapEntry<BuiltinFunction>>(ctx.builtin_fns, idx);
+        AW_emit_builtin_function(&ctx.wr, entry.key, entry.value);
+    }
+}
+
 f kompile_fn(ctx: &Ctx, fn: Function) {
     v idx = 0;
     w (I_lt(idx, V_len<Stmt>(fn.stmts))) {
@@ -167,6 +175,12 @@ f Type_eq(self: Type, other: Type) -> B {
     );
 }
 
+s ExprResult {
+    // The index of the local that stores the result
+    local: I,
+    type: Type
+}
+
 f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
     l maybe_fn = Map_get<BuiltinFunction>(ctx.builtin_fns, call.ident);
     i (O_is_none<BuiltinFunction>(maybe_fn)) {
@@ -188,5 +202,6 @@ f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
             print(I_to_string(nargs));
             exit();
         }
+
     }
 }
