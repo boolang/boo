@@ -46,6 +46,13 @@ s SubscriptExpr {
     index: Expr,
 }
 
+t LiteralExpr {
+    Int(I),
+    Bool(B),
+    String(S),
+    Char(C)
+}
+
 t Expr {
     Ident(S),
     MemberAccess(Box<MemberAccessExpr>),

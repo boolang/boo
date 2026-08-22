@@ -15,6 +15,10 @@ f Map_new<U>() -> Map<U> {
     r map;
 }
 
+f Map_count<T>(map: Map<T>) -> I {
+    r V_len<MapEntry<T>>(map.storage);
+}
+
 f Map_insert<T>(map: &Map<T>, key: S, value: T) {
     l idx = Map_find<T>(map, key);
     l entry = MapEntry<T> {

@@ -1,11 +1,11 @@
 f parse(input: S) -> Ast {
     v acc = input;
 
+    v decls = V_new<Decl>();
+
     w (y) {
         l result = next_token(acc);
         // acc = result.rest;
-
-        v decls = V_new<Decl>();
 
         m (result.value) {
             Token::KFunction => {
