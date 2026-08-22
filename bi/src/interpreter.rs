@@ -450,6 +450,9 @@ impl Interpreter {
                 ))
             },
         );
+        self.register_builtin("C_ord", vec![("char", "C")], "I", |arguments| {
+            Ok(Value::Int(arguments[0].as_char()? as _))
+        });
         self.register_builtin(
             "C_le",
             vec![("char", "C"), ("char", "C")],
@@ -506,6 +509,19 @@ impl Interpreter {
                 ))
             },
         );
+
+        self.register_builtin("I_add", vec![("a", "I"), ("b", "I")], "I", |arguments| {
+            Ok(Value::Int(arguments[0].as_int()? + arguments[1].as_int()?))
+        });
+        self.register_builtin("I_mul", vec![("a", "I"), ("b", "I")], "I", |arguments| {
+            Ok(Value::Int(arguments[0].as_int()? * arguments[1].as_int()?))
+        });
+        self.register_builtin("I_neg", vec![("a", "I")], "I", |arguments| {
+            Ok(Value::Int(-arguments[0].as_int()?))
+        });
+        self.register_builtin("I_to_string", vec![("a", "I")], "S", |arguments| {
+            Ok(Value::String(arguments[0].as_int()?.to_string()))
+        });
     }
 
     pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(

@@ -6,8 +6,9 @@ f main() {
     // l src = "hello.boo";
     // l contents = read(src);
     l contents = "// thiaenstrahsieanthiea s tuokwtj
-      f main() {}";
-    print(next_token(contents).remainder);
+    1023
+     {}";
+    print(next_token(next_token(contents).remainder).remainder);
 }
 
 s TokenParse {
@@ -18,6 +19,11 @@ s TokenParse {
 s StringParse {
     remainder: S,
     value: S,
+}
+
+s NumberParse {
+    remainder: S,
+    value: I,
 }
 
 t Token {
@@ -44,6 +50,7 @@ t Token {
     OpenBrace,
     CloseBrace,
     Colon,
+    DoubleColon,
     Semicolon,
     Arrow,
     DoubleArrow,
@@ -71,8 +78,7 @@ f next_token(input: S) -> TokenParse {
     }
 
     i (or(or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'Z')), and(C_ge(acc[0], 'a'), C_le(acc[0], 'z'))), C_eq(acc[0], '_'))) {
-        l result = next_ident(acc);
-        acc = result.remainder;
+        l result = lex_ident(acc);
         l ident = result.value;
 
         i (S_eq(ident, "b")) {
@@ -102,12 +108,49 @@ f next_token(input: S) -> TokenParse {
         } e {
             r TokenParse { remainder: result.remainder, value: Token::Id(ident) };
         }
+    } e i (and(C_ge(acc[0], '0'), C_le(acc[0], '9'))) {
+        l result = lex_number(acc);
+        r TokenParse { remainder: result.remainder, value: Token::Int(result.value) };
+    } e i (and(C_eq(acc[0], '-'), C_eq(acc[1], '>'))) {
+        r TokenParse { remainder: S_advance(acc, 2), value: Token::Arrow };
+    } e i (and(C_eq(acc[0], '='), C_eq(acc[1], '>'))) {
+        r TokenParse { remainder: S_advance(acc, 2), value: Token::DoubleArrow };
+    } e i (and(C_eq(acc[0], ':'), C_eq(acc[1], ':'))) {
+        r TokenParse { remainder: S_advance(acc, 2), value: Token::DoubleColon };
+    } e i (C_eq(acc[0], '(')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::OpenPar };
+    } e i (C_eq(acc[0], ')')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::ClosePar };
+    } e i (C_eq(acc[0], '[')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::OpenBracket };
+    } e i (C_eq(acc[0], ']')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::CloseBracket };
+    } e i (C_eq(acc[0], '{')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::OpenBrace };
+    } e i (C_eq(acc[0], '}')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::CloseBrace };
+    } e i (C_eq(acc[0], ':')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Colon };
+    } e i (C_eq(acc[0], ';')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Semicolon };
+    } e i (C_eq(acc[0], ',')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Comma };
+    } e i (C_eq(acc[0], '.')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Dot };
+    } e i (C_eq(acc[0], '=')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Equals };
+    } e i (C_eq(acc[0], '!')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Bang };
+    } e i (C_eq(acc[0], '<')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Less };
+    } e i (C_eq(acc[0], '>')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Greater };
+    } e i (C_eq(acc[0], '&')) {
+        r TokenParse { remainder: S_advance(acc, 1), value: Token::Ampersand };
     }
-
-    r TokenParse { remainder: acc };
 }
 
-f next_ident(input: S) -> StringParse {
+f lex_ident(input: S) -> StringParse {
     v acc = S_advance(input, 1);
     v ident = S_new_from_char(input[0]);
 
@@ -117,4 +160,22 @@ f next_ident(input: S) -> StringParse {
     }
 
     r StringParse { remainder: acc, value: ident };
+}
+
+f lex_number(input: S) -> NumberParse {
+    v acc = S_advance(input, 1);
+    
+    r parse_dec(input);
+}
+
+f parse_dec(input: S) -> NumberParse {
+    v acc = input;
+    v num = 0;
+
+    w (and(C_ge(acc[0], '0'), C_le(acc[0], '9'))) {
+        num = I_add(I_mul(10, num), C_ord(acc[0]));
+        acc = S_advance(acc, 1);
+    }
+
+    r NumberParse { remainder: acc, value: num };
 }
