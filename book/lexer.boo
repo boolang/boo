@@ -1,118 +1,124 @@
+f dbg_print(string: S) {
+    print(string);
+}
+
 f print_token(token: Token) {
     m (token) {
         Token::Id(ident) => {
-            print("Ident:");
-            print(ident);
+            dbg_print(S_push(S_concat("Id(", ident), ')'));
         }
         Token::Int(int) => {
-            print("Int:");
-            print(I_to_string(int));
+            dbg_print(S_push(S_concat("Int(", I_to_string(int)), ')'));
         }
         Token::Char(char) => {
-            print("Char:");
-            print(S_new_from_char(char));
+            dbg_print(S_push(S_concat("Char(", S_new_from_char(char)), ')'));
         }
         Token::String(string) => {
-            print("String:");
-            print(string);
+            dbg_print(S_push(S_concat("String(", string), ')'));
         }
         Token::KBreak => {
-            print("KBreak");
+            dbg_print("KBreak");
         }
         Token::KContinue => {
-            print("KContinue");
+            dbg_print("KContinue");
         }
         Token::KElse => {
-            print("KElse");
+            dbg_print("KElse");
         }
         Token::KFunction => {
-            print("KFunction");
+            dbg_print("KFunction");
         }
         Token::KIf => {
-            print("KIf");
+            dbg_print("KIf");
         }
         Token::KLet => {
-            print("KLet");
+            dbg_print("KLet");
         }
         Token::KMatch => {
-            print("KMatch");
+            dbg_print("KMatch");
         }
         Token::KReturn => {
-            print("KReturn");
+            dbg_print("KReturn");
         }
         Token::KStruct => {
-            print("KStruct");
+            dbg_print("KStruct");
         }
         Token::KType => {
-            print("KType");
+            dbg_print("KType");
         }
         Token::KVar => {
-            print("KVar");
+            dbg_print("KVar");
         }
         Token::KWhile => {
-            print("KWhile");
+            dbg_print("KWhile");
         }
         Token::OpenPar => {
-            print("OpenPar");
+            dbg_print("OpenPar");
         }
         Token::ClosePar => {
-            print("ClosePar");
+            dbg_print("ClosePar");
         }
         Token::OpenBracket => {
-            print("OpenBracket");
+            dbg_print("OpenBracket");
         }
         Token::CloseBracket => {
-            print("CloseBracket");
+            dbg_print("CloseBracket");
         }
         Token::OpenBrace => {
-            print("OpenBrace");
+            dbg_print("OpenBrace");
         }
         Token::CloseBrace => {
-            print("CloseBrace");
+            dbg_print("CloseBrace");
         }
         Token::Colon => {
-            print("Colon");
+            dbg_print("Colon");
         }
         Token::DoubleColon => {
-            print("DoubleColon");
+            dbg_print("DoubleColon");
         }
         Token::Semicolon => {
-            print("Semicolon");
+            dbg_print("Semicolon");
         }
         Token::Arrow => {
-            print("Arrow");
+            dbg_print("Arrow");
         }
         Token::DoubleArrow => {
-            print("DoubleArrow");
+            dbg_print("DoubleArrow");
         }
         Token::Comma => {
-            print("Comma");
+            dbg_print("Comma");
         }
         Token::Dot => {
-            print("Dot");
+            dbg_print("Dot");
         }
         Token::Equals => {
-            print("Equals");
+            dbg_print("Equals");
         }
         Token::Bang => {
-            print("Bang");
+            dbg_print("Bang");
         }
         Token::Less => {
-            print("Less");
+            dbg_print("Less");
         }
         Token::Greater => {
-            print("Greater");
+            dbg_print("Greater");
         }
         Token::Ampersand => {
-            print("Ampersand");
+            dbg_print("Ampersand");
         }
         Token::Eof => {
-            print("Eof");
+            dbg_print("Eof");
         }
     }
 }
 
 f next_token(input: S) -> Parse<Token> {
+    l result = lex_token(input);
+    print_token(result.value);
+    r result;
+}
+
+f lex_token(input: S) -> Parse<Token> {
     v acc = input;
     w (y) {
         i (S_is_empty(acc)) {
