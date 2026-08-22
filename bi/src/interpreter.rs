@@ -613,7 +613,7 @@ impl Interpreter {
         }
 
         // Allow built-in types
-        if ["S", "C", "I", "U"].contains(&ty.to_string().as_str()) {
+        if ["S", "C", "I", "U", "B"].contains(&ty.to_string().as_str()) {
             return Ok(ty.clone());
         }
 
