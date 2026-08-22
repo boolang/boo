@@ -43,8 +43,20 @@ f parse_function(input: S) -> Parse<Function> {
     l name = parse_ident(acc);
     acc = name.rest;
 
-    l generic_params = parse_generic_params(acc);
-    acc = generic_params.rest;
+    v generic_params = V_new<S>();
+	result = next_token(acc);
+	m (result.value) {
+		Token::Less => {
+			acc = result.rest;
+			l params_result = parse_generic_params(acc);
+            acc = params_result.rest;
+            generic_params = params_result.value;
+
+			result = next_token(acc);
+			acc = result.rest;
+			// Greater
+		}
+	}
 
     acc = next_token(acc).rest; // OpenPar
 
@@ -73,7 +85,7 @@ f parse_function(input: S) -> Parse<Function> {
         value: Function {
             signature: FunctionSignature {
                 ident: name.value,
-                generic_parameters: generic_params.value,
+                generic_parameters: generic_params,
                 parameters: params.value,
                 ret: ret_ty
             },
@@ -163,14 +175,12 @@ f parse_stmt(input: S) -> Parse<Stmt> {
         Token::KLet => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
-            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
         Token::KVar => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
-            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
@@ -324,6 +334,7 @@ f parse_expr(input: S) -> Parse<Expr> {
             }
 
             v expr = Expr::Ident(ident);
+            v generic_params = V_new<Type>();
             result = next_token(acc);
             m (result.value) {
                 Token::Less => {
@@ -333,19 +344,12 @@ f parse_expr(input: S) -> Parse<Expr> {
                     acc = generics.rest;
 
                     acc = next_token(acc).rest; // Greater
-                    acc = next_token(acc).rest; // OpenPar
-
-                    l args = parse_arg_list(acc);
-                    acc = args.rest;
-
-                    acc = next_token(acc).rest; // ClosePar
-
-                    expr = Expr::FunctionCall(FunctionCallExpr {
-                        ident: ident,
-                        generic_parameters: generics.value,
-                        arguments: args.value
-                    });
+                    generic_params = generics.value;
                 }
+            }
+
+            result = next_token(acc);
+            m (result.value) {
                 Token::OpenPar => {
                     acc = result.rest;
 
@@ -356,7 +360,21 @@ f parse_expr(input: S) -> Parse<Expr> {
 
                     expr = Expr::FunctionCall(FunctionCallExpr {
                         ident: ident,
-                        generic_parameters: V_new<Type>(),
+                        generic_parameters: generic_params,
+                        arguments: args.value
+                    });
+                }
+                Token::OpenBrace => {
+                    acc = result.rest;
+
+                    l args = parse_struct_args(acc);
+                    acc = args.rest;
+
+                    acc = next_token(acc).rest; // CloseBrace
+
+                    expr = Expr::StructInit(StructInitExpr {
+                        ident: ident,
+                        generic_parameters: generic_params,
                         arguments: args.value
                     });
                 }
@@ -376,6 +394,20 @@ f parse_expr(input: S) -> Parse<Expr> {
                         expr = Expr::Subscript(SubscriptExpr {
                             base: expr,
                             index: subscript.value
+                        });
+
+                        result = next_token(acc);
+                        c;
+                    }
+                    Token::Dot => {
+                        acc = result.rest;
+
+                        l member = parse_ident(acc);
+                        acc = member.rest;
+
+                        expr = Expr::MemberAccess(MemberAccessExpr {
+                            base: expr,
+                            member: member.value
                         });
 
                         result = next_token(acc);
@@ -486,6 +518,51 @@ f parse_param(input: S) -> Parse<Parameter> {
         rest: acc,
         value: Parameter { label: ident.value, ty: ArgumentType { ty: type.value, mutable: mutable } }
     };
+}
+
+f parse_struct_args(input: S) -> Parse<V<StructInitArgument>> {
+    v acc = input;
+	dbg_print("> struct_args");
+
+    v result = next_token(acc);
+    // Deliberately elided: acc = result.rest;
+
+    v fields = V_new<StructInitArgument>();
+
+    w (y) {
+        result = next_token(acc);
+        m (result.value) {
+            Token::CloseBrace => {
+                b;
+            }
+            Token::Comma => {
+                acc = result.rest;
+                c;
+            }
+        }
+        l field = parse_struct_field(acc);
+        acc = field.rest;
+        V_push<StructInitArgument>(&fields, field.value);
+    }
+
+	dbg_print("< struct_args");
+    r Parse<V<StructInitArgument>> { rest: acc, value: fields };
+}
+
+f parse_struct_field(input: S) -> Parse<StructInitArgument> {
+    v acc = input;
+	dbg_print("> struct_field");
+
+    v ident = parse_ident(acc);
+    acc = ident.rest;
+
+    acc = next_token(acc).rest; // Colon
+
+    v expr = parse_expr(acc);
+    acc = expr.rest;
+
+	dbg_print("< struct_field");
+    r Parse<StructInitArgument> { rest: acc, value: StructInitArgument { label: ident.value, value: expr.value } };
 }
 
 f expr_to_place(expr: Expr) -> PlaceExpr {
