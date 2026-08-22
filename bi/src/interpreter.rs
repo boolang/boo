@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
-    ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Decl, Enum, EnumInitExpr, Expr,
+    ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Binding, Decl, Enum, EnumInitExpr, Expr,
     Function, FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr, SimpleType, Stmt,
     Struct, StructInitExpr, Type,
 };
@@ -138,6 +138,13 @@ impl Value {
         match &self {
             Value::Struct(value) => Ok(value.clone()),
             _ => Err(anyhow!("Expected struct, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_enum(&self) -> Result<EnumValue> {
+        match &self {
+            Value::Enum(value) => Ok(*value.clone()),
+            _ => Err(anyhow!("Expected enum, got {}", self.infer_type())),
         }
     }
 
@@ -298,12 +305,6 @@ impl Context {
         ty: Option<Type>,
         storage: Option<Arc<Mutex<Value>>>,
     ) -> Result<()> {
-        for scope in self.scopes.iter() {
-            if scope.variables.contains_key(ident) {
-                return Err(anyhow!("Variable already exists with name '{}'", ident));
-            }
-        }
-
         let ty = match ty {
             Some(ty) => ty,
             None => match &storage {
@@ -320,18 +321,27 @@ impl Context {
             },
         };
 
+        let variable = Variable {
+            mutable,
+            value: storage,
+            ty,
+        };
+
+        self.new_variable_raw(ident, variable)
+    }
+
+    fn new_variable_raw(&mut self, ident: &str, variable: Variable) -> Result<()> {
+        for scope in self.scopes.iter() {
+            if scope.variables.contains_key(ident) {
+                return Err(anyhow!("Variable already exists with name '{}'", ident));
+            }
+        }
+
         self.scopes
             .last_mut()
             .ok_or(anyhow!("Context with no scopes??"))?
             .variables
-            .insert(
-                String::from(ident),
-                Variable {
-                    mutable,
-                    value: storage,
-                    ty,
-                },
-            );
+            .insert(String::from(ident), variable);
 
         Ok(())
     }
@@ -622,7 +632,19 @@ impl Interpreter {
     }
 
     fn exec_block(&mut self, stmts: &[Stmt], is_loop: bool) -> Result<Option<Action>> {
+        self.exec_block_with_vars(stmts, is_loop, vec![])
+    }
+
+    fn exec_block_with_vars(
+        &mut self,
+        stmts: &[Stmt],
+        is_loop: bool,
+        vars: Vec<(String, Variable)>,
+    ) -> Result<Option<Action>> {
         self.context.new_scope(is_loop);
+        for (ident, var) in vars.into_iter() {
+            self.context.new_variable_raw(&ident, var)?;
+        }
         let result = self.exec_stmts(stmts)?;
         self.context.pop_scope();
         Ok(result)
@@ -677,7 +699,62 @@ impl Interpreter {
                     return self.exec_block(&else_block.stmts, false);
                 }
             }
-            Stmt::Match(_) => todo!("match"),
+            Stmt::Match(match_stmt) => {
+                let value = self.eval_expr(&match_stmt.value)?;
+                let enum_value = value.as_enum()?;
+                for case_block in &match_stmt.case_blocks {
+                    if case_block.pattern.ident.value != enum_value.decl.ident.value {
+                        return Err(anyhow!(
+                            "Found case for enum '{}' in match of value from enum '{}'",
+                            case_block.pattern.ident.value,
+                            enum_value.decl.ident.value
+                        ));
+                    }
+
+                    if !enum_value
+                        .decl
+                        .cases
+                        .iter()
+                        .any(|x| x.ident.value == case_block.pattern.case.value)
+                    {
+                        return Err(anyhow!(
+                            "Enum '{}' does not have a case called '{}' (in match)",
+                            enum_value.decl.ident.value,
+                            case_block.pattern.case.value
+                        ));
+                    }
+                }
+
+                let block = match_stmt.case_blocks.iter().find(|case| {
+                    case.pattern.ident.value == enum_value.decl.cases[enum_value.case].ident.value
+                });
+                if let Some(block) = block {
+                    let vars: Vec<(String, Variable)> = match (
+                        &block.pattern.binding,
+                        enum_value.value,
+                    ) {
+                        (Some(Binding::Ident(binding)), Some(value)) => {
+                            vec![(
+                                binding.value.clone(),
+                                Variable {
+                                    mutable: false,
+                                    ty: value.infer_type(),
+                                    value: Some(Arc::new(Mutex::new(value))),
+                                },
+                            )]
+                        }
+                        (Some(_), None) => {
+                            return Err(anyhow!(
+                                "Attempted to destructure case '{}' of enum '{}' with associated value but the case was valueless",
+                                block.pattern.case.value,
+                                block.pattern.ident.value
+                            ));
+                        }
+                        _ => vec![],
+                    };
+                    return self.exec_block_with_vars(&block.stmts, false, vars);
+                }
+            }
             Stmt::While(while_stmt) => loop {
                 if !self.eval_condition(&while_stmt.condition)? {
                     break;
