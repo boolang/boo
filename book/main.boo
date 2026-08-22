@@ -6,9 +6,15 @@ f main() {
     // l src = "hello.boo";
     // l contents = read(src);
     l contents = "// thiaenstrahsieanthiea s tuokwtj
-    1023
+    -0x1023
      {}";
     print(next_token(next_token(contents).remainder).remainder);
+
+    print(I_to_string(lex_number("1234 ").value));
+    print(I_to_string(lex_number("-1234 ").value));
+    print(I_to_string(lex_number("0x1234 ").value));
+    print(I_to_string(lex_number("-0x1234 ").value));
+    print(I_to_string(lex_number("+0b10110 ").value));
 }
 
 s TokenParse {
@@ -108,7 +114,7 @@ f next_token(input: S) -> TokenParse {
         } e {
             r TokenParse { remainder: result.remainder, value: Token::Id(ident) };
         }
-    } e i (and(C_ge(acc[0], '0'), C_le(acc[0], '9'))) {
+    } e i (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(C_eq(acc[0], '-'), C_eq(acc[0], '+')))) {
         l result = lex_number(acc);
         r TokenParse { remainder: result.remainder, value: Token::Int(result.value) };
     } e i (and(C_eq(acc[0], '-'), C_eq(acc[1], '>'))) {
@@ -163,9 +169,72 @@ f lex_ident(input: S) -> StringParse {
 }
 
 f lex_number(input: S) -> NumberParse {
-    v acc = S_advance(input, 1);
+    v acc = input;
+    v negate = n;
+
+    i (C_eq(acc[0], '-')) {
+        acc = S_advance(acc, 1);
+        negate = y;
+    } e i (C_eq(acc[0], '+')) {
+        acc = S_advance(acc, 1);
+    }
     
-    r parse_dec(input);
+    v result = parse_dec(acc);
+    i (C_eq(acc[0], '0')) {
+        i (C_eq(acc[1], 'b')) {
+            result = parse_bin(S_advance(acc, 2));
+        } e i (C_eq(acc[1], 'o')) {
+            result = parse_oct(S_advance(acc, 2));
+        } e i (C_eq(acc[1], 'x')) {
+            result = parse_hex(S_advance(acc, 2));
+        }
+    }
+    i (negate) {
+        result.value = I_neg(result.value);
+    }
+    r result;
+}
+
+f parse_bin(input: S) -> NumberParse {
+    v acc = input;
+    v num = 0;
+
+    w (and(C_ge(acc[0], '0'), C_le(acc[0], '1'))) {
+        num = I_add(I_mul(2, num), I_sub(C_ord(acc[0]), C_ord('0')));
+        acc = S_advance(acc, 1);
+    }
+
+    r NumberParse { remainder: acc, value: num };
+}
+
+f parse_oct(input: S) -> NumberParse {
+    v acc = input;
+    v num = 0;
+
+    w (and(C_ge(acc[0], '0'), C_le(acc[0], '7'))) {
+        num = I_add(I_mul(8, num), I_sub(C_ord(acc[0]), C_ord('0')));
+        acc = S_advance(acc, 1);
+    }
+
+    r NumberParse { remainder: acc, value: num };
+}
+
+f parse_hex(input: S) -> NumberParse {
+    v acc = input;
+    v num = 0;
+
+    w (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'F')), and(C_ge(acc[0], 'a'), C_le(acc[0], 'f'))))) {
+        i (and(C_ge(acc[0], '0'), C_le(acc[0], '9'))) {
+            num = I_add(I_mul(16, num), I_sub(C_ord(acc[0]), C_ord('0')));
+        } e i (and(C_ge(acc[0], 'A'), C_le(acc[0], 'F'))) {
+            num = I_add(I_mul(16, num), I_sub(C_ord(acc[0]), C_ord('A')));
+        } e i (and(C_ge(acc[0], 'a'), C_le(acc[0], 'f'))) {
+            num = I_add(I_mul(16, num), I_sub(C_ord(acc[0]), C_ord('a')));
+        }
+        acc = S_advance(acc, 1);
+    }
+
+    r NumberParse { remainder: acc, value: num };
 }
 
 f parse_dec(input: S) -> NumberParse {
@@ -173,7 +242,7 @@ f parse_dec(input: S) -> NumberParse {
     v num = 0;
 
     w (and(C_ge(acc[0], '0'), C_le(acc[0], '9'))) {
-        num = I_add(I_mul(10, num), C_ord(acc[0]));
+        num = I_add(I_mul(10, num), I_sub(C_ord(acc[0]), C_ord('0')));
         acc = S_advance(acc, 1);
     }
 

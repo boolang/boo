@@ -513,6 +513,9 @@ impl Interpreter {
         self.register_builtin("I_add", vec![("a", "I"), ("b", "I")], "I", |arguments| {
             Ok(Value::Int(arguments[0].as_int()? + arguments[1].as_int()?))
         });
+        self.register_builtin("I_sub", vec![("a", "I"), ("b", "I")], "I", |arguments| {
+            Ok(Value::Int(arguments[0].as_int()? - arguments[1].as_int()?))
+        });
         self.register_builtin("I_mul", vec![("a", "I"), ("b", "I")], "I", |arguments| {
             Ok(Value::Int(arguments[0].as_int()? * arguments[1].as_int()?))
         });
