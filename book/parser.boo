@@ -26,6 +26,9 @@ f parse(input: S) -> Ast {
             Token::Eof => {
                 r Ast { decls: decls };
             }
+            _ => {
+                assert(n, "Shouldn't get a different kind of token in root");
+            }
         }
     }
 }
@@ -140,6 +143,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
         }
         Token::KMatch => {
             l match = parse_match(acc);
+            acc = match.rest;
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Match(match.value) };
         }
@@ -276,6 +280,97 @@ f parse_while(input: S) -> Parse<WhileStmt> {
     
     dbg_print("< while");
     r Parse<WhileStmt> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
+}
+
+f parse_match(input: S) -> Parse<MatchStmt> {
+    v acc = input;
+    dbg_print("> match");
+
+    acc = next_token(acc).rest; // KMatch;
+    acc = next_token(acc).rest; // OpenPar;
+
+    l value = parse_expr(acc);
+    acc = value.rest;
+
+    acc = next_token(acc).rest; // ClosePar;
+    
+    acc = next_token(acc).rest; // OpenBrace;
+
+    v cases = V_new<CaseBlock>();
+    v default = O_none<V<Stmt>>();
+    v result = next_token(acc);
+    w (y) {
+        result = next_token(acc);
+        m (result.value) {
+            Token::Underscore => {
+                acc = result.rest;
+                acc = next_token(acc).rest; // DoubleArrow
+                
+                l block = parse_block(acc);
+                acc = block.rest;
+
+                default = O_some<V<Stmt>>(block.value);
+                c;
+            }
+            Token::CloseBrace => {
+                acc = result.rest;
+                b;
+            }
+        }
+
+        l case = parse_case_block(acc);
+        acc = case.rest;
+        V_push<CaseBlock>(&cases, case.value);
+    }
+    
+    // s MatchStmt {
+    //     value: Expr,
+    //     case_blocks: V<CaseBlock>,
+    //     default_block: O<V<Stmt>>,
+    // }
+
+    
+    dbg_print("< match");
+    r Parse<MatchStmt> { rest: acc, value: MatchStmt { value: value.value, case_blocks: cases, default_block: default } };
+}
+
+f parse_case_block(input: S) -> Parse<CaseBlock> {
+    v acc = input;
+    dbg_print("> case_block");
+
+    l ident = parse_ident(acc);
+    acc = ident.rest;
+
+    acc = next_token(acc).rest; // DoubleColon
+
+    l case = parse_ident(acc);
+    acc = case.rest;
+
+    v binding = O_none<S>();
+    v result = next_token(acc);
+    m (result.value) {
+        Token::OpenPar => {
+            acc = result.rest;
+            l binding_r = parse_ident(acc);
+            acc = binding_r.rest;
+            acc = next_token(acc).rest; // ClosePar
+            binding = O_some<S>(binding_r.value);
+        }
+    }
+
+    acc = next_token(acc).rest; // DoubleArrow
+
+    l block = parse_block(acc);
+    acc = block.rest;
+    
+    dbg_print("< case_block");
+    r Parse<CaseBlock> {
+        rest: acc,
+        value: CaseBlock {
+            pattern: MatchPattern { ident: ident.value, case: case.value, binding: binding },
+            stmts: block.value
+        }
+    };
 }
 
 f parse_var_decl(input: S) -> Parse<VarDecl> {

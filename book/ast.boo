@@ -237,5 +237,6 @@ t Token {
     Less,
     Greater,
     Ampersand,
+    Underscore,
     Eof,
 }

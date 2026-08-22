@@ -2,10 +2,10 @@ f main() {
     // TODO: Get target file/files from argv
     v source_files = V_new<S>();
     // V_push<S>(&source_files, "../book/ast.boo");
-    V_push<S>(&source_files, "../book/helper.boo");
+    // V_push<S>(&source_files, "../book/helper.boo");
     // V_push<S>(&source_files, "../book/ir.boo");
-    // V_push<S>(&source_files, "../book/lexer.boo");
-    V_push<S>(&source_files, "../book/option.boo");
+    V_push<S>(&source_files, "../book/lexer.boo");
+    // V_push<S>(&source_files, "../book/option.boo");
     // V_push<S>(&source_files, "../book/parser.boo");
 
     v source = "";

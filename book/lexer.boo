@@ -138,7 +138,9 @@ f lex_token(input: S) -> Parse<Token> {
         acc = S_advance(acc, 1);
     }
 
-    i (or(or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'Z')), and(C_ge(acc[0], 'a'), C_le(acc[0], 'z'))), C_eq(acc[0], '_'))) {
+    i (C_eq(acc[0], '_')) {
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Underscore };
+    } e i (or(or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'Z')), and(C_ge(acc[0], 'a'), C_le(acc[0], 'z'))), C_eq(acc[0], '_'))) {
         l result = lex_ident(acc);
         l ident = result.value;
 
