@@ -122,7 +122,7 @@ f lex_token(input: S) -> Parse<Token> {
     v acc = input;
     w (y) {
         i (S_is_empty(acc)) {
-            r Parse<Token> { remainder: acc, value: Token::Eof };
+            r Parse<Token> { rest: acc, value: Token::Eof };
         }
         i (not(or(
             or(or(C_eq(acc[0], ' '), C_eq(acc[0], '\n')), or(C_eq(acc[0], '\t'), C_eq(acc[0], '\r'))),
@@ -147,77 +147,77 @@ f lex_token(input: S) -> Parse<Token> {
         l ident = result.value;
 
         i (S_eq(ident, "b")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KBreak };
+            r Parse<Token> { rest: result.rest, value: Token::KBreak };
         } e i (S_eq(ident, "c")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KContinue };
+            r Parse<Token> { rest: result.rest, value: Token::KContinue };
         } e i (S_eq(ident, "e")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KElse };
+            r Parse<Token> { rest: result.rest, value: Token::KElse };
         } e i (S_eq(ident, "f")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KFunction };
+            r Parse<Token> { rest: result.rest, value: Token::KFunction };
         } e i (S_eq(ident, "i")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KIf };
+            r Parse<Token> { rest: result.rest, value: Token::KIf };
         } e i (S_eq(ident, "l")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KLet };
+            r Parse<Token> { rest: result.rest, value: Token::KLet };
         } e i (S_eq(ident, "m")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KMatch };
+            r Parse<Token> { rest: result.rest, value: Token::KMatch };
         } e i (S_eq(ident, "r")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KReturn };
+            r Parse<Token> { rest: result.rest, value: Token::KReturn };
         } e i (S_eq(ident, "s")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KStruct };
+            r Parse<Token> { rest: result.rest, value: Token::KStruct };
         } e i (S_eq(ident, "t")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KType };
+            r Parse<Token> { rest: result.rest, value: Token::KType };
         } e i (S_eq(ident, "v")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KVar };
+            r Parse<Token> { rest: result.rest, value: Token::KVar };
         } e i (S_eq(ident, "w")) {
-            r Parse<Token> { remainder: result.remainder, value: Token::KWhile };
+            r Parse<Token> { rest: result.rest, value: Token::KWhile };
         } e {
-            r Parse<Token> { remainder: result.remainder, value: Token::Id(ident) };
+            r Parse<Token> { rest: result.rest, value: Token::Id(ident) };
         }
     } e i (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(C_eq(acc[0], '-'), C_eq(acc[0], '+')))) {
         l result = lex_number(acc);
-        r Parse<Token> { remainder: result.remainder, value: Token::Int(result.value) };
+        r Parse<Token> { rest: result.rest, value: Token::Int(result.value) };
     } e i (C_eq(acc[0], '"')) {
         l result = lex_string(acc);
-        r Parse<Token> { remainder: result.remainder, value: Token::String(result.value) };
+        r Parse<Token> { rest: result.rest, value: Token::String(result.value) };
     } e i (C_eq(acc[0], '\'')) {
         l result = lex_char(acc);
-        r Parse<Token> { remainder: result.remainder, value: Token::Char(result.value) };
+        r Parse<Token> { rest: result.rest, value: Token::Char(result.value) };
     } e i (and(C_eq(acc[0], '-'), C_eq(acc[1], '>'))) {
-        r Parse<Token> { remainder: S_advance(acc, 2), value: Token::Arrow };
+        r Parse<Token> { rest: S_advance(acc, 2), value: Token::Arrow };
     } e i (and(C_eq(acc[0], '='), C_eq(acc[1], '>'))) {
-        r Parse<Token> { remainder: S_advance(acc, 2), value: Token::DoubleArrow };
+        r Parse<Token> { rest: S_advance(acc, 2), value: Token::DoubleArrow };
     } e i (and(C_eq(acc[0], ':'), C_eq(acc[1], ':'))) {
-        r Parse<Token> { remainder: S_advance(acc, 2), value: Token::DoubleColon };
+        r Parse<Token> { rest: S_advance(acc, 2), value: Token::DoubleColon };
     } e i (C_eq(acc[0], '(')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::OpenPar };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::OpenPar };
     } e i (C_eq(acc[0], ')')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::ClosePar };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::ClosePar };
     } e i (C_eq(acc[0], '[')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::OpenBracket };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::OpenBracket };
     } e i (C_eq(acc[0], ']')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::CloseBracket };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::CloseBracket };
     } e i (C_eq(acc[0], '{')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::OpenBrace };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::OpenBrace };
     } e i (C_eq(acc[0], '}')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::CloseBrace };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::CloseBrace };
     } e i (C_eq(acc[0], ':')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Colon };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Colon };
     } e i (C_eq(acc[0], ';')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Semicolon };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Semicolon };
     } e i (C_eq(acc[0], ',')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Comma };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Comma };
     } e i (C_eq(acc[0], '.')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Dot };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Dot };
     } e i (C_eq(acc[0], '=')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Equals };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Equals };
     } e i (C_eq(acc[0], '!')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Bang };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Bang };
     } e i (C_eq(acc[0], '<')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Less };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Less };
     } e i (C_eq(acc[0], '>')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Greater };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Greater };
     } e i (C_eq(acc[0], '&')) {
-        r Parse<Token> { remainder: S_advance(acc, 1), value: Token::Ampersand };
+        r Parse<Token> { rest: S_advance(acc, 1), value: Token::Ampersand };
     }
 
     print("oops");
@@ -233,7 +233,7 @@ f lex_ident(input: S) -> Parse<S> {
         acc = S_advance(acc, 1);
     }
 
-    r Parse<S> { remainder: acc, value: ident };
+    r Parse<S> { rest: acc, value: ident };
 }
 
 f lex_number(input: S) -> Parse<I> {
@@ -272,7 +272,7 @@ f parse_bin(input: S) -> Parse<I> {
         acc = S_advance(acc, 1);
     }
 
-    r Parse<I> { remainder: acc, value: num };
+    r Parse<I> { rest: acc, value: num };
 }
 
 f parse_oct(input: S) -> Parse<I> {
@@ -284,7 +284,7 @@ f parse_oct(input: S) -> Parse<I> {
         acc = S_advance(acc, 1);
     }
 
-    r Parse<I> { remainder: acc, value: num };
+    r Parse<I> { rest: acc, value: num };
 }
 
 f parse_hex(input: S) -> Parse<I> {
@@ -302,7 +302,7 @@ f parse_hex(input: S) -> Parse<I> {
         acc = S_advance(acc, 1);
     }
 
-    r Parse<I> { remainder: acc, value: num };
+    r Parse<I> { rest: acc, value: num };
 }
 
 f parse_dec(input: S) -> Parse<I> {
@@ -314,7 +314,7 @@ f parse_dec(input: S) -> Parse<I> {
         acc = S_advance(acc, 1);
     }
 
-    r Parse<I> { remainder: acc, value: num };
+    r Parse<I> { rest: acc, value: num };
 }
 
 f lex_char(input: S) -> Parse<C> {
@@ -322,19 +322,19 @@ f lex_char(input: S) -> Parse<C> {
 
     i (C_eq(acc[0], '\\')) {
         i (C_eq(acc[1], 'n')) {
-            r Parse<C> { remainder: S_advance(acc, 3), value: '\n' };
+            r Parse<C> { rest: S_advance(acc, 3), value: '\n' };
         } e i (C_eq(acc[1], 't')) {
-            r Parse<C> { remainder: S_advance(acc, 3), value: '\t' };
+            r Parse<C> { rest: S_advance(acc, 3), value: '\t' };
         } e i (C_eq(acc[1], 'r')) {
-            r Parse<C> { remainder: S_advance(acc, 3), value: '\r' };
+            r Parse<C> { rest: S_advance(acc, 3), value: '\r' };
         } e {
-            r Parse<C> { remainder: S_advance(acc, 3), value: acc[1] };
+            r Parse<C> { rest: S_advance(acc, 3), value: acc[1] };
         }
     } e {
-        r Parse<C> { remainder: S_advance(acc, 2), value: acc[0] };
+        r Parse<C> { rest: S_advance(acc, 2), value: acc[0] };
     }
 
-    r Parse<C> { remainder: S_advance(acc, 2), value: string };
+    r Parse<C> { rest: S_advance(acc, 2), value: string };
 }
 
 f lex_string(input: S) -> Parse<S> {
@@ -359,5 +359,5 @@ f lex_string(input: S) -> Parse<S> {
         }
     }
 
-    r Parse<S> { remainder: S_advance(acc, 1), value: string };
+    r Parse<S> { rest: S_advance(acc, 1), value: string };
 }

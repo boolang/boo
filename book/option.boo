@@ -8,12 +8,12 @@ f O_none<T>() -> O<T> {
 
 f O_some<T>(value: T) -> O<T> {
     v vec = V_new<T>();
-    V_push(vec, value);
+    V_push<T>(vec, value);
     r O<T> { value: vec };
 }
 
 f O_is_none<T>(opt: O<T>) -> B {
-    r I_eq(V_len(opt.value), 0);
+    r I_eq(V_len<T>(opt.value), 0);
 }
 
 f O_is_some<T>(opt: O<T>) -> B {

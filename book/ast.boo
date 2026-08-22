@@ -191,7 +191,7 @@ s Ast {
 // MARK: Lexer
 
 s Parse<T> {
-    remainder: S,
+    rest: S,
     value: T,
 }
 
