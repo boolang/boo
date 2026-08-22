@@ -835,6 +835,19 @@ impl Interpreter {
             .map(|expr| self.eval_expr(&expr))
             .transpose()?;
 
+        // Check value type against expected type
+        if let (Some(ty), Some(value)) = (&case.ty, &value)
+            && !ty.is_equiv(&value.infer_type())
+        {
+            return Err(anyhow!(
+                "Case '{}' of enum '{}' expected a value of type '{}' but got a value of type '{}'",
+                case.ident.value,
+                enum_decl.ident.value,
+                ty,
+                value.infer_type()
+            ));
+        }
+
         Ok(Value::Enum(Box::new(EnumValue {
             decl: enum_decl,
             case: case_index,
