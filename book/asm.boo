@@ -61,7 +61,24 @@ f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
     }
 }
 
-f AW_emit_dummy_function_prelude(wr: &AsmWriter) {
+f AW_emit_dummy_function_prelude(wr: &AsmWriter, ident: S) {
+    l fn_idx = AW_idx(wr);
+
+    // Fill in pending jumps
+    l addr = I_add(fn_idx, wr.base_addr);
+    l lookup = Map_get<V<I>>(wr.pending_jumps, ident);
+    i (O_is_some<V<I>>(lookup)) {
+        l offsets = O_get<V<I>>(lookup);
+        v idx = 0;
+        w (I_lt(idx, V_len<I>(offsets))) {
+            l offset = V_get<I>(offsets, idx);
+            print("Emitting relocation");
+            S_set_range(&wr.buf, offset, I_u32_to_bytes(addr));
+
+            idx = I_add(idx, 1);
+        }
+    }
+
     // Emit space for instructions to create stack frame and set
     // function_prelude_location
     //  0:   c8 67 67 00             enter  $0x6767,$0x0
@@ -69,7 +86,7 @@ f AW_emit_dummy_function_prelude(wr: &AsmWriter) {
     // Dummy value to replace
     code = S_concat(code, I_u16_to_bytes(0x4141));
     code = S_push(code, I_chr(0));
-    wr.function_prelude_location = I_add(AW_idx(wr), 1);
+    wr.function_prelude_location = I_add(fn_idx, 1);
     AW_write(&wr, code);
 }
 

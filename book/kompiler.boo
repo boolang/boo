@@ -7,6 +7,7 @@ s Ctx {
     structs: Map<Struct>,
     enums: Map<Enum>,
     fns: Map<Function>,
+    fn_q: Q<S>,
     builtin_fns: Map<BuiltinFunction>,
     constants: V<Constant>,
     wr: AsmWriter
@@ -26,6 +27,7 @@ f kompile(ast: Ast) {
         structs: Map_new<Struct>(),
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
+        fn_q: Q_new<S>(),
         builtin_fns: Map_new<BuiltinFunction>(),
         constants: V_new<Constant>(),
         wr: AsmWriter {
@@ -76,9 +78,17 @@ f kompile(ast: Ast) {
     print("# functions:");
     print(I_to_string(Map_count<Function>(ctx.fns)));
 
-    l main_fn = Map_get<Function>(ctx.fns, "main");
-    i (O_is_some<Function>(main_fn)) {
-        kompile_fn(&ctx, O_get<Function>(main_fn));
+    Q_push<S>(&ctx.fn_q, "main");
+    v fn = Q_pop<S>(&ctx.fn_q);
+    w (O_is_some<S>(fn)) {
+        l fn_ast = Map_get<Function>(ctx.fns, O_get<S>(fn));
+        i (O_is_some<Function>(fn_ast)) {
+            print(S_concat("Kompiling function ", O_get<S>(fn)));
+            kompile_fn(&ctx, O_get<Function>(fn_ast));
+        } e {
+            print(S_concat("Could not find function ", fn));
+        }
+        fn = Q_pop<S>(&ctx.fn_q);
     }
 
     emit_builtins(&ctx);
@@ -99,7 +109,7 @@ f emit_builtins(ctx: &Ctx) {
 }
 
 f kompile_fn(ctx: &Ctx, fn: Function) {
-    AW_emit_dummy_function_prelude(&ctx.wr);
+    AW_emit_dummy_function_prelude(&ctx.wr, fn.signature.ident);
     v idx = 0;
     w (I_lt(idx, V_len<Stmt>(fn.stmts))) {
         l stmt = V_get<Stmt>(fn.stmts, idx);
@@ -199,15 +209,41 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
         kompile_builtin_fn_call(&ctx, call);
     } e {
         l fn = O_get<Function>(maybe_fn);
+        l nparams = V_len<Parameter>(fn.signature.parameters);
+        print("Function call");
+        print(call.ident);
         print("Function has this many arguments");
-        print(I_to_string(V_len<Parameter>(fn.parameters)));
+        print(I_to_string(nparams));
 
-        print("User-defined functions not supported");
-        exit();
+        i (not(I_eq(V_len<S>(fn.signature.generic_parameters), 0))) {
+            print("Generic functions are not yet supported");
+            exit();
+        }
+
+        l nargs = V_len<ArgumentValue>(call.arguments);
+        i (not(I_eq(nparams, nargs))) {
+            print("Error in function:");
+            print(call.ident);
+            print("Invalid number of function params, expected:");
+            print(I_to_string(nparams));
+            print("But got");
+            print(I_to_string(nargs));
+            exit();
+        }
+
+        AW_call(&ctx.wr, call.ident);
+        queue_fn(&ctx, call.ident);
     }
 
     l nargs = V_len<ArgumentValue>(call.arguments);
     AW_shrink_stack(&ctx.wr, I_mul(8, nargs));
+}
+
+f queue_fn(ctx: &Ctx, fn: S) {
+    i (Q_contains_string(ctx.fn_q, fn)) {
+        r;
+    }
+    Q_push<S>(&ctx.fn_q, fn);
 }
 
 f resolve_type(ctx: Ctx, type: Type) -> Type {
