@@ -8,10 +8,10 @@ use winnow::stream::TokenSlice;
 use winnow::token::{literal, one_of};
 
 use crate::ast::{
-    ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field,
-    Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr,
-    MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument,
-    StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
+    ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, EnumInitExpr,
+    Expr, Field, Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr,
+    MemberAccessExpr, MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct,
+    StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -279,6 +279,7 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
         function_call.map(Expr::FunctionCall),
         paren_expr.map(Expr::Paren),
         struct_init.map(Expr::StructInit),
+        enum_init.map(Expr::EnumInit),
         ident.map(Expr::Ident),
     )))
     .postfix(alt((
@@ -382,6 +383,39 @@ fn struct_arg(input: &mut TokenSlice<Token>) -> winnow::ModalResult<StructInitAr
         expr
     )
     .map(|(label, value)| StructInitArgument { label, value })
+    .parse_next(input)
+}
+
+fn enum_init(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Box<EnumInitExpr>> {
+    alt((
+        seq!(
+            ident,
+            _: literal(TokenKind::DoubleColon),
+            ident,
+            _: literal(TokenKind::OpenPar),
+            expr,
+            _: literal(TokenKind::ClosePar),
+        )
+        .map(|(ident, case, expr)| {
+            Box::new(EnumInitExpr {
+                ident,
+                case,
+                value: Some(expr),
+            })
+        }),
+        seq!(
+            ident,
+            _: literal(TokenKind::DoubleColon),
+            ident,
+        )
+        .map(|(ident, case)| {
+            Box::new(EnumInitExpr {
+                ident,
+                case,
+                value: None,
+            })
+        }),
+    ))
     .parse_next(input)
 }
 

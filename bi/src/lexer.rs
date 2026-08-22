@@ -71,6 +71,7 @@ pub enum TokenKind {
     OpenBrace,
     CloseBrace,
     Colon,
+    DoubleColon,
     Semicolon,
     Arrow,
     DoubleArrow,
@@ -145,6 +146,7 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
         dispatch! {take(2usize);
             "->" => empty.value(TokenKind::Arrow),
             "=>" => empty.value(TokenKind::DoubleArrow),
+            "::" => empty.value(TokenKind::DoubleColon),
             _ => fail,
         },
         dispatch! {any;
