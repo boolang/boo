@@ -1,6 +1,6 @@
 f main() {
     // TODO: Get target file/files from argv
-    l src = "../book/parser_test.boo";
+    l src = "../book/ast.boo";
     l contents = read(src);
 
     parse(contents);
@@ -24,7 +24,7 @@ f parse(input: S) {
                 acc = ast.remainder;
             }
             Token::KType => {
-                l ast = parse_enum(acc);
+                l ast = parse_type(acc);
                 acc = ast.remainder;
             }
             Token::Eof => {
@@ -112,13 +112,13 @@ f parse_type(input: S) -> Parse<I> {
         }
     }
 
-    v result = next_token(acc);
+    result = next_token(acc);
     acc = result.remainder;
     // OpenBrace
 
     parse_case_list(acc);
 
-    v result = next_token(acc);
+    result = next_token(acc);
     acc = result.remainder;
     // CloseBrace
 
@@ -170,67 +170,6 @@ f parse_case(input: S) -> Parse<I> {
     }
 
     r Case { name: name, ty: name };
-}
-
-s Struct {
-    ident: S,
-}
-
-s Case {
-    name: Ident,
-    ty: Type,
-}
-
-t Type {
-    Simple(SimpleType)
-}
-
-s SimpleType {
-    ident: Ident,
-    // generic_parameters: Vec<Type>,
-}
-
-s Parse<T> {
-    remainder: S,
-    value: T,
-}
-
-t Token {
-    Id(S),
-    Int(I),
-    Char(C),
-    String(S),
-    KBreak,
-    KContinue,
-    KElse,
-    KFunction,
-    KIf,
-    KLet,
-    KMatch,
-    KReturn,
-    KStruct,
-    KType,
-    KVar,
-    KWhile,
-    OpenPar,
-    ClosePar,
-    OpenBracket,
-    CloseBracket,
-    OpenBrace,
-    CloseBrace,
-    Colon,
-    DoubleColon,
-    Semicolon,
-    Arrow,
-    DoubleArrow,
-    Comma,
-    Dot,
-    Equals,
-    Bang,
-    Less,
-    Greater,
-    Ampersand,
-    Eof,
 }
 
 f print_token(token: Token) {

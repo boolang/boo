@@ -52,143 +52,50 @@ struct Args {
     #[arg(short, long)]
     bundled: bool,
 
-    #[arg(required_unless_present("expr"))]
-    input_file: Option<PathBuf>,
-
-    #[arg(short, long, conflicts_with("input_file"))]
-    expr: Option<String>,
+    // #[arg(required_unless_present("expr"))]
+    input_files: Vec<PathBuf>,
+    // #[arg(short, long, conflicts_with("input_file"))]
+    // expr: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let expr = args
-        .input_file
-        .map(|path| std::fs::read_to_string(path).unwrap())
-        .or(args.expr)
-        .unwrap();
+    let mut ast = Ast { decls: vec![] };
 
-    let tokens = match tokenise(&expr) {
-        Ok(tokens) => tokens,
-        Err(e) => {
-            eprintln!("{e}");
-            return;
+    for file in args.input_files {
+        if args.tokenise || args.ast {
+            eprintln!("{}", file.display());
         }
-    };
 
-    if args.tokenise {
-        println!("{tokens:#?}");
+        let expr = std::fs::read_to_string(file).unwrap();
+
+        let tokens = match tokenise(&expr) {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                eprintln!("{e}");
+                return;
+            }
+        };
+
+        if args.tokenise {
+            println!("{tokens:#?}");
+        }
+
+        let mut file_ast = match parse(&tokens) {
+            Ok(ast) => ast,
+            Err(e) => {
+                print_parse_error(&expr, e).unwrap();
+                return;
+            }
+        };
+
+        if args.ast {
+            println!("{ast:#?}");
+        }
+
+        ast.decls.append(&mut file_ast.decls);
     }
-
-    let ast = match parse(&tokens) {
-        Ok(ast) => ast,
-        Err(e) => {
-            print_parse_error(&expr, e).unwrap();
-            return;
-        }
-    };
-
-    if args.ast {
-        println!("{ast:#?}");
-    }
-
-    let ast = if args.bundled {
-        Ast {
-            decls: vec![
-                Decl::Struct(Struct {
-                    ident: ident("Person"),
-                    generic_parameters: vec![],
-                    fields: vec![
-                        Field {
-                            ident: ident("name"),
-                            ty: ty("S"),
-                        },
-                        Field {
-                            ident: ident("age"),
-                            ty: ty("I"),
-                        },
-                    ],
-                }),
-                Decl::Function(Function {
-                    signature: FunctionSignature {
-                        ident: ident("main"),
-                        parameters: vec![],
-                        ret: None,
-                        generic_parameters: vec![],
-                    },
-                    stmts: vec![
-                        Stmt::VarDecl(VarDecl {
-                            mutable: true,
-                            ident: ident("person"),
-                            ty: None,
-                            value: Some(Expr::StructInit(StructInitExpr {
-                                ident: ident("Person"),
-                                generic_parameters: vec![],
-                                arguments: vec![
-                                    StructInitArgument {
-                                        label: ident("name"),
-                                        value: str_lit("stackotter"),
-                                    },
-                                    StructInitArgument {
-                                        label: ident("age"),
-                                        value: int_lit(21),
-                                    },
-                                ],
-                            })),
-                        }),
-                        Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
-                            ident: ident("print"),
-                            generic_parameters: vec![],
-                            arguments: vec![ast::ArgumentValue::Immutable(Expr::MemberAccess(
-                                Box::new(MemberAccessExpr {
-                                    base: Expr::Ident(ident("person")),
-                                    member: ident("name"),
-                                }),
-                            ))],
-                        })),
-                        Stmt::Assignment(AssignmentStmt {
-                            place: PlaceExpr::Member(Box::new(MemberPlaceExpr {
-                                base: PlaceExpr::Ident(ident("person")),
-                                member: ident("name"),
-                            })),
-                            value: str_lit("bpaul"),
-                        }),
-                        Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
-                            ident: ident("print"),
-                            generic_parameters: vec![],
-                            arguments: vec![ArgumentValue::Immutable(Expr::MemberAccess(
-                                Box::new(MemberAccessExpr {
-                                    base: Expr::Ident(ident("person")),
-                                    member: ident("name"),
-                                }),
-                            ))],
-                        })),
-                        Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
-                            ident: ident("print"),
-                            generic_parameters: vec![],
-                            arguments: vec![ArgumentValue::Immutable(Expr::FunctionCall(
-                                FunctionCallExpr {
-                                    ident: ident("S_new_from_char"),
-                                    generic_parameters: vec![],
-                                    arguments: vec![ArgumentValue::Immutable(Expr::Subscript(
-                                        Box::new(SubscriptExpr {
-                                            base: Expr::MemberAccess(Box::new(MemberAccessExpr {
-                                                base: Expr::Ident(ident("person")),
-                                                member: ident("name"),
-                                            })),
-                                            index: int_lit(3),
-                                        }),
-                                    ))],
-                                },
-                            ))],
-                        })),
-                    ],
-                }),
-            ],
-        }
-    } else {
-        ast
-    };
 
     let mut interpreter = Interpreter::new(ast);
     interpreter.register_stdlib_builtins();
