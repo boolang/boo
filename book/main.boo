@@ -3,20 +3,134 @@
 
 f main() {
     // TODO: Get target file/files from argv
-    // l src = "hello.boo";
-    // l contents = read(src);
-    l contents = "// thiaenstrahsieanthiea s tuokwtj
-    \"hihihihi\" '\\''
-     {}";
-    print(next_token(next_token(contents).remainder).remainder);
+    l src = "../book/parser_test.boo";
+    l contents = read(src);
 
-    print(I_to_string(lex_number("1234 ").value));
-    print(I_to_string(lex_number("-1234 ").value));
-    print(I_to_string(lex_number("0x1234 ").value));
-    print(I_to_string(lex_number("-0x1234 ").value));
-    print(I_to_string(lex_number("+0b10110 ").value));
+    parse(contents);
+}
 
-    print(lex_string("\"hel\\n\\\"lo\"").value);
+f parse(input: S) {
+    v acc = input;
+
+    w (y) {
+        l result = next_token(acc);
+        // acc = result.remainder;
+
+        print_token(result.value);
+        m (result.value) {
+            Token::KFunction => {
+                l ast = parse_function(acc);
+                acc = ast.remainder;
+            }
+            Token::KStruct => {
+                l ast = parse_struct(acc);
+                acc = ast.remainder;
+            }
+            Token::KType => {
+                l ast = parse_enum(acc);
+                acc = ast.remainder;
+            }
+        }
+    }
+}
+
+f parse_function(input: S) -> AstParse<I> {
+    v acc = input;
+    
+    r AstParse<I> { remainder: acc, value: 0 };
+}
+
+f parse_struct(input: S) -> AstParse<Struct> {
+    v acc = input;
+    
+    v result = next_token(acc);
+    acc = result.remainder;
+    // KStruct
+
+    result = next_token(acc);
+    acc = result.remainder;
+    v name = "FIXME";
+    m (result.value) {
+        Token::Id(ident) => {
+            name = ident;
+        }
+    }
+
+    result = next_token(acc);
+    acc = result.remainder;
+    // OpenBrace
+
+    v ast = parse_field_list(acc);
+    acc = ast.remainder;
+
+    result = next_token(acc);
+    acc = result.remainder;
+    // CloseBrace
+
+    r AstParse<Struct> { remainder: acc, value: Struct { ident: name } };
+}
+
+f parse_field_list(input: S) -> AstParse<I> {
+    v acc = input;
+
+    v result = next_token(acc);
+    // Deliberately elided: acc = result.remainder;
+
+    w (y) {
+        result = next_token(acc);
+        m (result.value) {
+            Token::CloseBrace => {
+                b;
+            }
+            Token::Comma => {
+                acc = result.remainder;
+                c;
+            }
+        }
+        acc = result.remainder;
+
+        print_token(result.value);
+    }
+
+    r AstParse<I> { remainder: acc, value: 0 };
+}
+
+f parse_type(input: S) -> AstParse<I> {
+    v acc = input;
+    
+    v result = next_token(acc);
+    acc = result.remainder;
+    // KType
+
+    result = next_token(acc);
+    acc = result.remainder;
+    v name = "FIXME";
+    m (result.value) {
+        Token::Id(ident) => {
+            name = ident;
+        }
+    }
+
+    v result = next_token(acc);
+    acc = result.remainder;
+    // OpenBrace
+
+    parse_case_list(acc);
+
+    v result = next_token(acc);
+    acc = result.remainder;
+    // CloseBrace
+
+    r AstParse<I> { remainder: acc, value: 0 };
+}
+
+s Struct {
+    ident: S,
+}
+
+s AstParse<T> {
+    remainder: S,
+    value: T,
 }
 
 s TokenParse {
@@ -74,6 +188,117 @@ t Token {
     Less,
     Greater,
     Ampersand,
+}
+
+f print_token(token: Token) {
+    m (token) {
+        Token::Id(ident) => {
+            print("Ident:");
+            print(ident);
+        }
+        Token::Int(int) => {
+            print("Int:");
+            print(I_to_string(int));
+        }
+        Token::Char(char) => {
+            print("Char:");
+            print(S_new_from_char(char));
+        }
+        Token::String(string) => {
+            print("String:");
+            print(string);
+        }
+        Token::KBreak => {
+            print("KBreak");
+        }
+        Token::KContinue => {
+            print("KContinue");
+        }
+        Token::KElse => {
+            print("KElse");
+        }
+        Token::KFunction => {
+            print("KFunction");
+        }
+        Token::KIf => {
+            print("KIf");
+        }
+        Token::KLet => {
+            print("KLet");
+        }
+        Token::KMatch => {
+            print("KMatch");
+        }
+        Token::KReturn => {
+            print("KReturn");
+        }
+        Token::KStruct => {
+            print("KStruct");
+        }
+        Token::KType => {
+            print("KType");
+        }
+        Token::KVar => {
+            print("KVar");
+        }
+        Token::KWhile => {
+            print("KWhile");
+        }
+        Token::OpenPar => {
+            print("OpenPar");
+        }
+        Token::ClosePar => {
+            print("ClosePar");
+        }
+        Token::OpenBracket => {
+            print("OpenBracket");
+        }
+        Token::CloseBracket => {
+            print("CloseBracket");
+        }
+        Token::OpenBrace => {
+            print("OpenBrace");
+        }
+        Token::CloseBrace => {
+            print("CloseBrace");
+        }
+        Token::Colon => {
+            print("Colon");
+        }
+        Token::DoubleColon => {
+            print("DoubleColon");
+        }
+        Token::Semicolon => {
+            print("Semicolon");
+        }
+        Token::Arrow => {
+            print("Arrow");
+        }
+        Token::DoubleArrow => {
+            print("DoubleArrow");
+        }
+        Token::Comma => {
+            print("Comma");
+        }
+        Token::Dot => {
+            print("Dot");
+        }
+        Token::Equals => {
+            print("Equals");
+        }
+        Token::Bang => {
+            print("Bang");
+        }
+        Token::Less => {
+            print("Less");
+        }
+        Token::Greater => {
+            print("Greater");
+        }
+        Token::Ampersand => {
+            print("Ampersand");
+        }
+    }
 }
 
 f next_token(input: S) -> TokenParse {

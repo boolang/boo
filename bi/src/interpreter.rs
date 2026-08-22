@@ -555,6 +555,12 @@ impl Interpreter {
         self.register_builtin("I_to_string", vec![("a", "I")], "S", |arguments| {
             Ok(Value::String(arguments[0].as_int()?.to_string()))
         });
+
+        self.register_builtin("read", vec![("path", "S")], "S", |arguments| {
+            Ok(Value::String(
+                std::fs::read_to_string(arguments[0].as_string()?).unwrap(),
+            ))
+        });
     }
 
     pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(
