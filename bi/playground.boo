@@ -21,6 +21,14 @@ f id<T>(value: T) -> T {
     r value;
 }
 
+s Box<T> {
+    value: T
+}
+
+f Box_set<T>(box: &Box<T>, value: T) {
+    box.value = value;
+}
+
 f main() {
     v person = Person { name: "stackotter", age: 1 };
     print(person.name);
@@ -41,4 +49,9 @@ f main() {
             print("comma");
         }
     }
+
+    v box = Box<S> { value: "value" };
+    print(box.value);
+    Box_set<S>(&box, "new_value");
+    print(box.value);
 }

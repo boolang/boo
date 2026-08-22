@@ -36,12 +36,17 @@ fn r#struct(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Struct> {
         literal(TokenKind::KStruct),
         cut_err(seq!(
             ident,
+            opt(generic_params),
             _: literal(TokenKind::OpenBrace),
             field_list,
             _: literal(TokenKind::CloseBrace),
         )),
     )
-    .map(|(ident, fields)| Struct { ident, fields })
+    .map(|(ident, generic_params, fields)| Struct {
+        ident,
+        generic_parameters: generic_params.unwrap_or(vec![]),
+        fields,
+    })
     .parse_next(input)
 }
 
@@ -467,11 +472,16 @@ fn paren_expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Box<Rich<Exp
 fn struct_init(input: &mut TokenSlice<Token>) -> winnow::ModalResult<StructInitExpr> {
     seq!(
         ident,
+        opt(generic_call_params),
         _: literal(TokenKind::OpenBrace),
         separated(0.., struct_arg, literal(TokenKind::Comma)),
         _: literal(TokenKind::CloseBrace),
     )
-    .map(|(ident, arguments)| StructInitExpr { ident, arguments })
+    .map(|(ident, generic_params, arguments)| StructInitExpr {
+        ident,
+        generic_parameters: generic_params.unwrap_or(vec![]),
+        arguments,
+    })
     .parse_next(input)
 }
 
@@ -519,11 +529,11 @@ fn enum_init(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Box<EnumInitE
 }
 
 fn r#type(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Type> {
-    ident
-        .map(|ident| {
+    seq!(ident, opt(generic_call_params))
+        .map(|(ident, generic_parameters)| {
             Type::Simple(SimpleType {
                 ident,
-                generic_parameters: vec![],
+                generic_parameters: generic_parameters.unwrap_or(vec![]),
             })
         })
         .parse_next(input)

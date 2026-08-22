@@ -97,6 +97,7 @@ fn main() {
             decls: vec![
                 Decl::Struct(Struct {
                     ident: ident("Person"),
+                    generic_parameters: vec![],
                     fields: vec![
                         Field {
                             ident: ident("name"),
@@ -122,6 +123,7 @@ fn main() {
                             ty: None,
                             value: Some(Expr::StructInit(StructInitExpr {
                                 ident: ident("Person"),
+                                generic_parameters: vec![],
                                 arguments: vec![
                                     StructInitArgument {
                                         label: ident("name"),

@@ -619,8 +619,31 @@ impl Interpreter {
 
         match ty {
             Type::Simple(ty) => {
-                if self.structs.iter().any(|x| x.ident.value == ty.ident.value)
-                    || self.enums.iter().any(|x| x.ident.value == ty.ident.value)
+                if let Some(decl) = self
+                    .structs
+                    .iter()
+                    .find(|x| x.ident.value == ty.ident.value)
+                {
+                    if decl.generic_parameters.len() != ty.generic_parameters.len() {
+                        return Err(anyhow!(
+                            "Type '{}' requires {} generic parameters but got {}",
+                            decl.ident.value,
+                            decl.generic_parameters.len(),
+                            ty.generic_parameters.len()
+                        ));
+                    }
+                    let mut ty = ty.clone();
+                    ty.generic_parameters = ty
+                        .generic_parameters
+                        .into_iter()
+                        .map(|x| self.eval_ty(&x))
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(Type::Simple(ty))
+                } else if self
+                    .enums
+                    .iter()
+                    .find(|x| x.ident.value == ty.ident.value)
+                    .is_some()
                 {
                     Ok(Type::Simple(ty.clone()))
                 } else {
@@ -1004,6 +1027,19 @@ impl Interpreter {
             ));
         }
 
+        let ty = Type::Simple(SimpleType {
+            ident: struct_init.ident.clone(),
+            generic_parameters: struct_init.generic_parameters.clone(),
+        });
+        let ty = self.eval_ty(&ty)?;
+        let generic_arguments = match ty {
+            Type::Simple(ty) => ty.generic_parameters,
+        };
+
+        let mut field_type_context = Context::new();
+        field_type_context
+            .add_generic_params(struct_decl.generic_parameters.clone(), generic_arguments)?;
+
         for (field, argument) in struct_decl.fields.iter().zip(&struct_init.arguments) {
             if field.ident.value != argument.label.value {
                 return Err(anyhow!(
@@ -1016,10 +1052,14 @@ impl Interpreter {
             }
         }
 
+        let outer_context = self.context.clone();
         let mut values = HashMap::new();
         for (field, argument) in struct_decl.fields.iter().zip(&struct_init.arguments) {
             let value = self.eval_expr(&argument.value)?;
-            if !value.infer_type().is_equiv(&field.ty) {
+            self.context = field_type_context.clone();
+            let field_ty = self.eval_ty(&field.ty)?;
+            self.context = outer_context.clone();
+            if !value.infer_type().is_equiv(&field_ty) {
                 return Err(anyhow!(
                     "Expected expression of type {} but got expression of type {} (for field {} of struct {})",
                     field.ty,

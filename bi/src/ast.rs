@@ -142,6 +142,7 @@ pub struct FunctionCallExpr {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StructInitExpr {
     pub ident: Ident,
+    pub generic_parameters: Vec<Type>,
     pub arguments: Vec<StructInitArgument>,
 }
 
@@ -295,6 +296,7 @@ pub struct Field {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Struct {
     pub ident: Ident,
+    pub generic_parameters: Vec<Ident>,
     pub fields: Vec<Field>,
 }
 
