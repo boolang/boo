@@ -44,8 +44,8 @@ impl EnumValue {
 pub enum Value {
     Int(i128),
     Bool(bool),
-    String(String),
-    Character(char),
+    String(Vec<u8>),
+    Character(u8),
     Unit,
     Struct(StructValue),
     Enum(Box<EnumValue>),
@@ -124,9 +124,16 @@ impl Value {
         }
     }
 
-    pub fn as_string(&self) -> Result<String> {
+    pub fn as_string(&self) -> Result<Vec<u8>> {
         match &self {
             Value::String(value) => Ok(value.clone()),
+            _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_rs_string(&self) -> Result<String> {
+        match &self {
+            Value::String(value) => Ok(String::from_utf8(value.clone())?),
             _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
         }
     }
@@ -145,7 +152,7 @@ impl Value {
         }
     }
 
-    pub fn as_char(&self) -> Result<char> {
+    pub fn as_char(&self) -> Result<u8> {
         match &self {
             Value::Character(value) => Ok(*value),
             _ => Err(anyhow!("Expected C, got {}", self.infer_type())),
@@ -469,7 +476,7 @@ impl Interpreter {
 
     pub fn register_stdlib_builtins(&mut self) {
         self.register_builtin("print", vec![("string", "S")], "U", |_, arguments| {
-            println!("{}", arguments[0].value().as_string()?);
+            println!("{}", arguments[0].value().as_rs_string()?);
             Ok(Value::Unit)
         });
 
@@ -535,7 +542,7 @@ impl Interpreter {
             "S_new_from_char",
             vec![("char", "C")],
             "S",
-            |_, arguments| Ok(Value::String(arguments[0].value().as_char()?.to_string())),
+            |_, arguments| Ok(Value::String(vec![arguments[0].value().as_char()?])),
         );
         self.register_builtin("S_is_empty", vec![("string", "S")], "B", |_, arguments| {
             Ok(Value::Bool(arguments[0].value().as_string()?.is_empty()))
@@ -608,7 +615,9 @@ impl Interpreter {
             Ok(Value::Int(-arguments[0].value().as_int()?))
         });
         self.register_builtin("I_to_string", vec![("a", "I")], "S", |_, arguments| {
-            Ok(Value::String(arguments[0].value().as_int()?.to_string()))
+            Ok(Value::String(
+                arguments[0].value().as_int()?.to_string().into_bytes(),
+            ))
         });
         self.register_builtin("I_eq", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
             Ok(Value::Bool(
@@ -618,7 +627,9 @@ impl Interpreter {
 
         self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
             Ok(Value::String(
-                std::fs::read_to_string(arguments[0].value().as_string()?).unwrap(),
+                std::fs::read_to_string(arguments[0].value().as_rs_string()?)
+                    .unwrap()
+                    .into_bytes(),
             ))
         });
 
@@ -1194,7 +1205,7 @@ impl Interpreter {
     fn eval_expr(&mut self, expr: &Expr) -> Result<Value> {
         match expr {
             Expr::Ident(ident) => self.context.get_variable(&ident.value),
-            Expr::Literal(literal) => Ok(self.eval_literal(literal)),
+            Expr::Literal(literal) => self.eval_literal(literal),
             Expr::Paren(expr) => self.eval_expr(&expr.value),
             Expr::FunctionCall(call) => {
                 let arguments: Result<Vec<_>> = call
@@ -1237,9 +1248,7 @@ impl Interpreter {
                     ));
                 }
 
-                Ok(Value::Character(
-                    string.chars().nth(index as usize).unwrap(),
-                ))
+                Ok(Value::Character(string[index as usize]))
             }
         }
     }
@@ -1371,12 +1380,12 @@ impl Interpreter {
         })))
     }
 
-    fn eval_literal(&mut self, literal: &LiteralExpr) -> Value {
+    fn eval_literal(&mut self, literal: &LiteralExpr) -> Result<Value> {
         match literal {
-            LiteralExpr::Int(value) => Value::Int(value.value),
-            LiteralExpr::Bool(value) => Value::Bool(value.value),
-            LiteralExpr::String(value) => Value::String(value.value.clone()),
-            LiteralExpr::Char(value) => Value::Character(value.value),
+            LiteralExpr::Int(value) => Ok(Value::Int(value.value)),
+            LiteralExpr::Bool(value) => Ok(Value::Bool(value.value)),
+            LiteralExpr::String(value) => Ok(Value::String(value.value.clone().into_bytes())),
+            LiteralExpr::Char(value) => Ok(Value::Character(u8::try_from(value.value)?)),
         }
     }
 }
