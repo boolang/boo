@@ -1,13 +1,15 @@
 use winnow::Parser;
-use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated, seq, terminated};
+use winnow::combinator::{
+    Postfix, alt, delimited, expression, opt, preceded, repeat, separated, seq, terminated,
+};
 use winnow::error::{ContextError, ParseError};
 use winnow::stream::TokenSlice;
 use winnow::token::{literal, one_of};
 
 use crate::ast::{
     AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field, Function, FunctionCallExpr,
-    FunctionSignature, IfBlock, IfStmt, LiteralExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt,
-    Struct, Type, VarDecl, WhileStmt,
+    FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr, Parameter, PlaceExpr, Rich,
+    SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -226,10 +228,22 @@ fn r#return(input: &mut TokenSlice<Token>) -> winnow::Result<Option<Expr>> {
 }
 
 fn expr(input: &mut TokenSlice<Token>) -> winnow::Result<Expr> {
-    // TODO
-    alt((
-        e_ident.map(Expr::Literal),
+    expression(alt((
+        e_literal.map(Expr::Literal),
         function_call.map(Expr::FunctionCall),
+        paren_expr.map(Expr::Paren),
+        struct_init.map(Expr::StructInit),
+        ident.map(Expr::Ident),
+    )))
+    .postfix(preceded(
+        literal(TokenKind::Dot),
+        Postfix(1, |input: &mut _, base| {
+            let member = ident.parse_next(input)?;
+            Ok(Expr::MemberAccess(Box::new(MemberAccessExpr {
+                base,
+                member,
+            })))
+        }),
     ))
     .parse_next(input)
 }
@@ -239,7 +253,7 @@ fn place_expr(input: &mut TokenSlice<Token>) -> winnow::Result<PlaceExpr> {
     alt((ident.map(PlaceExpr::Ident),)).parse_next(input)
 }
 
-fn e_ident(input: &mut TokenSlice<Token>) -> winnow::Result<LiteralExpr> {
+fn e_literal(input: &mut TokenSlice<Token>) -> winnow::Result<LiteralExpr> {
     string_lit.map(LiteralExpr::String).parse_next(input)
 }
 
@@ -251,6 +265,42 @@ fn function_call(input: &mut TokenSlice<Token>) -> winnow::Result<FunctionCallEx
         _: literal(TokenKind::ClosePar),
     )
     .map(|(ident, arguments)| FunctionCallExpr { ident, arguments })
+    .parse_next(input)
+}
+
+fn paren_expr(input: &mut TokenSlice<Token>) -> winnow::Result<Box<Rich<Expr>>> {
+    seq!(
+        literal(TokenKind::OpenPar),
+        expr,
+        literal(TokenKind::ClosePar),
+    )
+    .map(|(open, value, close)| {
+        Box::new(Rich {
+            value,
+            span: ((open[0].span.start)..(close[0].span.end)).into(),
+        })
+    })
+    .parse_next(input)
+}
+
+fn struct_init(input: &mut TokenSlice<Token>) -> winnow::Result<StructInitExpr> {
+    seq!(
+        ident,
+        _: literal(TokenKind::OpenBrace),
+        separated(0.., struct_arg, literal(TokenKind::Comma)),
+        _: literal(TokenKind::CloseBrace),
+    )
+    .map(|(ident, arguments)| StructInitExpr { ident, arguments })
+    .parse_next(input)
+}
+
+fn struct_arg(input: &mut TokenSlice<Token>) -> winnow::Result<StructInitArgument> {
+    seq!(
+        ident,
+        _: literal(TokenKind::Colon),
+        expr
+    )
+    .map(|(label, value)| StructInitArgument { label, value })
     .parse_next(input)
 }
 

@@ -73,12 +73,12 @@ pub enum TokenKind {
     Arrow,
     DoubleArrow,
     Comma,
+    Dot,
     Equals,
     Bang,
     Less,
     Greater,
     Ampersand,
-    Dot,
 }
 
 pub fn tokenise(input: &str) -> Result<Vec<Token>, ParseError<LocatingSlice<&str>, ContextError>> {
