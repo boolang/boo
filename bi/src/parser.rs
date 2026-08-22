@@ -44,7 +44,11 @@ fn r#struct(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Struct> {
 }
 
 fn field_list(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Field>> {
-    separated(0.., field, literal(TokenKind::Comma)).parse_next(input)
+    terminated(
+        separated(0.., field, literal(TokenKind::Comma)),
+        opt(literal(TokenKind::Comma)),
+    )
+    .parse_next(input)
 }
 
 fn field(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Field> {
@@ -68,7 +72,11 @@ fn r#enum(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Enum> {
 }
 
 fn case_list(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Case>> {
-    separated(0.., cut_err(case), literal(TokenKind::Comma)).parse_next(input)
+    terminated(
+        separated(0.., cut_err(case), literal(TokenKind::Comma)),
+        literal(TokenKind::Comma),
+    )
+    .parse_next(input)
 }
 
 fn case(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Case> {
@@ -154,7 +162,14 @@ fn r#if(input: &mut TokenSlice<Token>) -> winnow::ModalResult<IfStmt> {
         cut_err(seq!(
             separated(
                 1..,
-                (delimited(literal(TokenKind::OpenPar), expr, literal(TokenKind::ClosePar)), block)
+                (
+                    delimited(
+                        literal(TokenKind::OpenPar),
+                        expr,
+                        literal(TokenKind::ClosePar)
+                    ),
+                    block
+                )
                     .map(|(condition, stmts)| IfBlock { condition, stmts }),
                 (literal(TokenKind::KElse), literal(TokenKind::KIf)),
             ),
@@ -275,7 +290,11 @@ fn place_expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<PlaceExpr> {
 
 fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> {
     // TODO: Number literals
-    string_lit.map(LiteralExpr::String).parse_next(input)
+    alt((
+        string_lit.map(LiteralExpr::String),
+        int_lit.map(LiteralExpr::Int),
+    ))
+    .parse_next(input)
 }
 
 fn function_call(input: &mut TokenSlice<Token>) -> winnow::ModalResult<FunctionCallExpr> {
@@ -350,6 +369,25 @@ fn string_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<String>
         .map(|name: &[Token]| Rich {
             value: name[0].value.clone(),
             span: name[0].span,
+        })
+        .parse_next(input)
+}
+
+fn int_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<i128>> {
+    literal(TokenKind::Int)
+        .map(|name: &[Token]| {
+            let (radix, num) = match name[0].value.get(..2) {
+                Some("0b") => (2, &name[0].value[2..]),
+                Some("0o") => (8, &name[0].value[2..]),
+                Some("0x") => (16, &name[0].value[2..]),
+                _ => (10, name[0].value.as_str()),
+            };
+            let value = i128::from_str_radix(num, radix)
+                .expect("Int already has been parsed and so should be valid.");
+            Rich {
+                value,
+                span: name[0].span,
+            }
         })
         .parse_next(input)
 }
