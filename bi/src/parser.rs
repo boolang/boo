@@ -327,16 +327,17 @@ fn var_decl(input: &mut TokenSlice<Token>) -> winnow::ModalResult<VarDecl> {
         one_of(|t: &Token| *t == TokenKind::KLet || *t == TokenKind::KVar),
         cut_err(seq!(
             ident,
-            opt(preceded(literal(TokenKind::Colon), r#type)),
-            opt(preceded(literal(TokenKind::Equals), expr)),
+            // opt(preceded(literal(TokenKind::Colon), r#type)),
+            // opt(preceded(literal(TokenKind::Equals), expr)),
+            preceded(literal(TokenKind::Equals), expr),
             _: literal(TokenKind::Semicolon),
         ))
     )
-    .map(|(mutable, (ident, ty, value))| VarDecl {
+    .map(|(mutable, (ident, value))| VarDecl {
         mutable: *mutable == TokenKind::KVar,
         ident,
-        ty,
-        value,
+        ty: None,
+        value: Some(value),
     })
     .parse_next(input)
 }
@@ -387,7 +388,7 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
     expression(alt((
         e_literal.map(Expr::Literal),
         function_call.map(Expr::FunctionCall),
-        paren_expr.map(Expr::Paren),
+        // paren_expr.map(Expr::Paren),
         struct_init.map(Expr::StructInit),
         enum_init.map(Expr::EnumInit),
         ident.map(Expr::Ident),

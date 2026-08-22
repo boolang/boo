@@ -263,9 +263,29 @@ f parse_expr(input: S) -> Parse<Expr> {
     dbg_print("> expr");
 
     v result = next_token(acc);
-    
-    dbg_print("< expr");
-    r Parse<While> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
+    m (result.value) {
+        TokenKind::Int(int) => {
+            dbg_print("< expr");
+            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::IntLiteral(int)) };
+        }
+        TokenKind::String(string) => {
+            dbg_print("< expr");
+            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::StringLiteral(string)) };
+        }
+        TokenKind::Char(char) => {
+            dbg_print("< expr");
+            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::CharLiteral(char)) };
+        }
+        TokenKind::Ident(ident) => {
+            i (S_eq(ident, "y")) {
+                dbg_print("< expr");
+                r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::BoolLiteral(y)) };
+            } e i (S_eq(ident, "n")) {
+                dbg_print("< expr");
+                r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::BoolLiteral(n)) };
+            }
+        }
+    }
 }
 
 f parse_param_list(input: S) -> Parse<V<Parameter>> {

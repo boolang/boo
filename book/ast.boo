@@ -58,7 +58,7 @@ t Expr {
     MemberAccess(Box<MemberAccessExpr>),
     Literal(LiteralExpr),
     FunctionCall(FunctionCallExpr),
-    Paren(Box<Expr>),
+    // Paren(Box<Expr>),
     StructInit(StructInitExpr),
     EnumInit(Box<EnumInitExpr>),
     Subscript(Box<SubscriptExpr>),
