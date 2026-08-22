@@ -1,6 +1,7 @@
 use winnow::Parser;
 use winnow::combinator::{
-    Postfix, alt, cut_err, delimited, expression, opt, preceded, repeat, separated, seq, terminated,
+    Postfix, alt, cut_err, delimited, expression, opt, preceded, repeat, separated, seq,
+    terminated, trace,
 };
 use winnow::error::{ContextError, ParseError};
 use winnow::stream::TokenSlice;
@@ -95,7 +96,7 @@ fn function(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Function> {
             _: literal(TokenKind::OpenPar),
             arguments,
             _: literal(TokenKind::ClosePar),
-            opt(preceded(literal(TokenKind::Arrow), r#type)),
+            opt(preceded(literal(TokenKind::Arrow), cut_err(r#type))),
             block,
         )),
     )
@@ -131,16 +132,19 @@ fn block(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Stmt>> {
 
 fn stmt(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Stmt> {
     // TODO
-    cut_err(alt((
-        r#if.map(Stmt::If),
-        r#while.map(Stmt::While),
-        var_decl.map(Stmt::VarDecl),
-        assignment.map(Stmt::Assignment),
-        expr_stmt.map(Stmt::Expr),
-        r#break.map(|_| Stmt::Break),
-        r#continue.map(|_| Stmt::Continue),
-        r#return.map(Stmt::Return),
-    )))
+    trace(
+        "stmt",
+        alt((
+            r#if.map(Stmt::If),
+            r#while.map(Stmt::While),
+            var_decl.map(Stmt::VarDecl),
+            assignment.map(Stmt::Assignment),
+            expr_stmt.map(Stmt::Expr),
+            r#break.map(|_| Stmt::Break),
+            r#continue.map(|_| Stmt::Continue),
+            r#return.map(Stmt::Return),
+        )),
+    )
     .parse_next(input)
 }
 
@@ -245,31 +249,29 @@ fn r#return(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Option<Expr>> 
 }
 
 fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
-    cut_err(
-        expression(alt((
-            e_literal.map(Expr::Literal),
-            function_call.map(Expr::FunctionCall),
-            paren_expr.map(Expr::Paren),
-            struct_init.map(Expr::StructInit),
-            ident.map(Expr::Ident),
-        )))
-        .postfix(preceded(
-            literal(TokenKind::Dot),
-            Postfix(1, |input: &mut _, base| {
-                let member = ident.parse_next(input)?;
-                Ok(Expr::MemberAccess(Box::new(MemberAccessExpr {
-                    base,
-                    member,
-                })))
-            }),
-        )),
-    )
+    expression(alt((
+        e_literal.map(Expr::Literal),
+        function_call.map(Expr::FunctionCall),
+        paren_expr.map(Expr::Paren),
+        struct_init.map(Expr::StructInit),
+        ident.map(Expr::Ident),
+    )))
+    .postfix(preceded(
+        literal(TokenKind::Dot),
+        Postfix(1, |input: &mut _, base| {
+            let member = ident.parse_next(input)?;
+            Ok(Expr::MemberAccess(Box::new(MemberAccessExpr {
+                base,
+                member,
+            })))
+        }),
+    ))
     .parse_next(input)
 }
 
 fn place_expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<PlaceExpr> {
     // TODO
-    cut_err(alt((ident.map(PlaceExpr::Ident),))).parse_next(input)
+    alt((ident.map(PlaceExpr::Ident),)).parse_next(input)
 }
 
 fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> {
@@ -394,56 +396,41 @@ pub fn print_parse_error(
     let token = &e.input()[e.offset()];
     let span_start = token.span.start;
     let span_end = token.span.end;
-    if input.contains(&b'\n') {
-        let (line_idx, col_idx) = translate_position(input, span_start);
-        let line_num = line_idx + 1;
-        let col_num = col_idx + 1;
-        let gutter = line_num.to_string().len();
-        let content = input
-            .split(|c| *c == b'\n')
-            .nth(line_idx)
-            .expect("valid line number");
+    let (line_idx, col_idx) = translate_position(input, span_start);
+    let line_num = line_idx + 1;
+    let col_num = col_idx + 1;
+    let gutter = line_num.to_string().len();
+    let content = input
+        .split(|c| *c == b'\n')
+        .nth(line_idx)
+        .expect("valid line number");
 
-        writeln!(f, "parse error at line {line_num}, column {col_num}")?;
-        //   |
-        for _ in 0..gutter {
-            write!(f, " ")?;
-        }
-        writeln!(f, " |")?;
-
-        // 1 | 00:32:00.a999999
-        write!(f, "{line_num} | ")?;
-        writeln!(f, "{}", String::from_utf8_lossy(content))?;
-
-        //   |          ^
-        for _ in 0..gutter {
-            write!(f, " ")?;
-        }
-        write!(f, " | ")?;
-        for _ in 0..col_idx {
-            write!(f, " ")?;
-        }
-        // The span will be empty at eof, so we need to make sure we always print at least
-        // one `^`
-        write!(f, "^")?;
-        for _ in (span_start + 1)..(span_end.min(span_start + content.len())) {
-            write!(f, "^")?;
-        }
-        writeln!(f)?;
-    } else {
-        let content = input;
-        writeln!(f, "{}", String::from_utf8_lossy(content))?;
-        for _ in 0..span_start {
-            write!(f, " ")?;
-        }
-        // The span will be empty at eof, so we need to make sure we always print at least
-        // one `^`
-        write!(f, "^")?;
-        for _ in (span_start + 1)..(span_end.min(span_start + content.len())) {
-            write!(f, "^")?;
-        }
-        writeln!(f)?;
+    writeln!(f, "parse error at line {line_num}, column {col_num}")?;
+    //   |
+    for _ in 0..gutter {
+        write!(f, " ")?;
     }
+    writeln!(f, " |")?;
+
+    // 1 | 00:32:00.a999999
+    write!(f, "{line_num} | ")?;
+    writeln!(f, "{}", String::from_utf8_lossy(content))?;
+
+    //   |          ^
+    for _ in 0..gutter {
+        write!(f, " ")?;
+    }
+    write!(f, " | ")?;
+    for _ in 0..col_idx {
+        write!(f, " ")?;
+    }
+    // The span will be empty at eof, so we need to make sure we always print at least
+    // one `^`
+    write!(f, "^")?;
+    for _ in (span_start + 1)..(span_end.min(span_start + content.len())) {
+        write!(f, "^")?;
+    }
+    writeln!(f)?;
     write!(f, "{}", e.inner())?;
 
     Ok(())
