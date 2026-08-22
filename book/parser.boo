@@ -61,7 +61,9 @@ f parse_struct(input: S) -> Parse<Struct> {
 	m (result.value) {
 		Token::Less => {
 			acc = result.rest;
-			params = parse_generic_params(acc);
+			l params_result = parse_generic_params(acc);
+            acc = params_result.rest;
+            params = params_result.value;
 
 			result = next_token(acc);
 			acc = result.rest;
@@ -200,7 +202,7 @@ f parse_case(input: S) -> Parse<Case> {
 		    acc = result.rest;
 
             v type_result = parse_type(acc);
-            acc = type.rest;
+            acc = type_result.rest;
             type = O_some<Type>(type_result.value);
 
             acc = next_token(acc).rest; // ClosePar;

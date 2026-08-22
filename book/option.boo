@@ -8,7 +8,7 @@ f O_none<T>() -> O<T> {
 
 f O_some<T>(value: T) -> O<T> {
     v vec = V_new<T>();
-    V_push<T>(vec, value);
+    V_push<T>(&vec, value);
     r O<T> { value: vec };
 }
 

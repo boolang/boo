@@ -669,15 +669,8 @@ impl Interpreter {
             vec![("vec", vec_t.clone(), false)],
             int.clone(),
             |_, arguments| {
-                let mutex = arguments[0].get_mut()?;
-                Ok(Value::Int(
-                    mutex
-                        .lock()
-                        .map_err(|_| anyhow!("Poisoned lock"))?
-                        .as_vector_mut()?
-                        .vector
-                        .len() as i128,
-                ))
+                let vector = arguments[0].value().as_vector()?;
+                Ok(Value::Int(vector.vector.len() as _))
             },
         );
 
