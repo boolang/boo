@@ -10,8 +10,8 @@ use winnow::token::{literal, one_of};
 use crate::ast::{
     ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field,
     Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr,
-    Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, Type,
-    VarDecl, WhileStmt,
+    Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr,
+    SubscriptExpr, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -74,8 +74,8 @@ fn r#enum(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Enum> {
 
 fn case_list(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Case>> {
     terminated(
-        separated(0.., cut_err(case), literal(TokenKind::Comma)),
-        literal(TokenKind::Comma),
+        separated(0.., case, literal(TokenKind::Comma)),
+        opt(literal(TokenKind::Comma)),
     )
     .parse_next(input)
 }
@@ -274,16 +274,25 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
         struct_init.map(Expr::StructInit),
         ident.map(Expr::Ident),
     )))
-    .postfix(preceded(
-        literal(TokenKind::Dot),
-        Postfix(1, |input: &mut _, base| {
-            let member = ident.parse_next(input)?;
-            Ok(Expr::MemberAccess(Box::new(MemberAccessExpr {
-                base,
-                member,
-            })))
-        }),
-    ))
+    .postfix(alt((
+        preceded(
+            literal(TokenKind::Dot),
+            Postfix(1, |input: &mut _, base| {
+                let member = ident.parse_next(input)?;
+                Ok(Expr::MemberAccess(Box::new(MemberAccessExpr {
+                    base,
+                    member,
+                })))
+            }),
+        ),
+        preceded(
+            literal(TokenKind::OpenBracket),
+            Postfix(1, |input: &mut _, base| {
+                let index = terminated(expr, literal(TokenKind::CloseBracket)).parse_next(input)?;
+                Ok(Expr::Subscript(Box::new(SubscriptExpr { base, index })))
+            }),
+        ),
+    )))
     .parse_next(input)
 }
 
