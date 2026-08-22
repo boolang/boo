@@ -34,7 +34,7 @@ export default grammar({
       $.block,
     ),
 
-    fun_def_arg: $ => choice(seq('&', $.typed_var), $.typed_var),
+    fun_def_arg: $ => choice(seq($.binding, ':', '&', $.type), seq($.binding, ':', $.type)),
 
     struct_def: $ => seq(
       's',

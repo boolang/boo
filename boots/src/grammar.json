@@ -124,18 +124,39 @@
           "type": "SEQ",
           "members": [
             {
+              "type": "SYMBOL",
+              "name": "binding"
+            },
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
               "type": "STRING",
               "value": "&"
             },
             {
               "type": "SYMBOL",
-              "name": "typed_var"
+              "name": "type"
             }
           ]
         },
         {
-          "type": "SYMBOL",
-          "name": "typed_var"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "binding"
+            },
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "type"
+            }
+          ]
         }
       ]
     },

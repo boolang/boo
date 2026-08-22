@@ -15,6 +15,7 @@
 (place_expr (identifier) @variable)
 (var_decl_statement (binding) @variable)
 (typed_var (binding) @variable)
+(fun_def_arg (binding) @variable)
 (pattern (identifier) @constructor)
 (pattern (binding) @variable)
 (call (identifier) @function.call)
