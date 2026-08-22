@@ -34,5 +34,5 @@ f main() {
     l token1 = Token::Comma;
     l token2 = Token::Integer(1);
 
-    print(id(name));
+    print(id<S>(name));
 }

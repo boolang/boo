@@ -191,5 +191,5 @@ fn main() {
     let mut interpreter = Interpreter::new(ast);
     interpreter.register_stdlib_builtins();
 
-    interpreter.eval_fn("main", vec![]).unwrap();
+    interpreter.eval_fn("main", vec![], vec![]).unwrap();
 }

@@ -181,13 +181,43 @@ impl Scope {
 #[derive(Clone, Debug)]
 struct Context {
     scopes: Vec<Scope>,
+    generic_parameters: HashMap<String, Type>,
 }
 
 impl Context {
     fn new() -> Self {
-        let mut context = Self { scopes: Vec::new() };
+        let mut context = Self {
+            scopes: Vec::new(),
+            generic_parameters: HashMap::new(),
+        };
         context.new_scope(false);
         context
+    }
+
+    fn add_generic_params(
+        &mut self,
+        generic_params: Vec<Ident>,
+        generic_args: Vec<Type>,
+    ) -> Result<()> {
+        if generic_params.len() != generic_args.len() {
+            return Err(anyhow!(
+                "Expected {} generic arguments, but got {}",
+                generic_params.len(),
+                generic_args.len(),
+            ));
+        }
+
+        for (param, arg) in generic_params.into_iter().zip(generic_args) {
+            if self.generic_parameters.contains_key(&param.value) {
+                return Err(anyhow!(
+                    "Duplicate generic parameter name '{}'",
+                    param.value
+                ));
+            }
+            self.generic_parameters.insert(param.value, arg);
+        }
+
+        Ok(())
     }
 
     fn allow_loop_control(&self) -> bool {
@@ -563,9 +593,51 @@ impl Interpreter {
         );
     }
 
-    pub fn eval_fn(&mut self, ident: &str, arguments: Vec<ArgumentValue>) -> Result<Value> {
-        enum Body<'r> {
-            Stmts(&'r Vec<Stmt>),
+    pub fn eval_arg_ty(&mut self, ty: &ArgumentType) -> Result<ArgumentType> {
+        let resolved = self.eval_ty(&ty.ty)?;
+        Ok(ArgumentType {
+            ty: resolved,
+            mutable: ty.mutable,
+        })
+    }
+
+    pub fn eval_ty(&mut self, ty: &Type) -> Result<Type> {
+        // If the type doesn't have generic parameters of its own, search for
+        // it in the generic parameters first (they can shadow other global
+        // declarations)
+        if let Type::Simple(simple) = ty
+            && simple.generic_parameters.is_empty()
+            && let Some(arg) = self.context.generic_parameters.get(&simple.ident.value)
+        {
+            return Ok(arg.clone());
+        }
+
+        // Allow built-in types
+        if ["S", "C", "I", "U"].contains(&ty.to_string().as_str()) {
+            return Ok(ty.clone());
+        }
+
+        match ty {
+            Type::Simple(ty) => {
+                if self.structs.iter().any(|x| x.ident.value == ty.ident.value)
+                    || self.enums.iter().any(|x| x.ident.value == ty.ident.value)
+                {
+                    Ok(Type::Simple(ty.clone()))
+                } else {
+                    Err(anyhow!("No such type '{}'", ty))
+                }
+            }
+        }
+    }
+
+    pub fn eval_fn(
+        &mut self,
+        ident: &str,
+        generic_arguments: Vec<Type>,
+        arguments: Vec<ArgumentValue>,
+    ) -> Result<Value> {
+        enum Body {
+            Stmts(Vec<Stmt>),
             Builtin(BuiltinFunctionBody),
         }
 
@@ -574,7 +646,7 @@ impl Interpreter {
             .iter()
             .find(|f| f.signature.ident.value == ident)
         {
-            Some(f) => (f.signature.clone(), Body::Stmts(&f.stmts)),
+            Some(f) => (f.signature.clone(), Body::Stmts(f.stmts.clone())),
             None => match self.builtins.get(ident) {
                 Some(builtin) => (
                     builtin.signature.clone(),
@@ -593,13 +665,20 @@ impl Interpreter {
             ));
         }
 
+        let caller_context = self.context.clone();
+
+        self.context = Context::new();
+        self.context
+            .add_generic_params(signature.generic_parameters, generic_arguments)?;
+
         for (param, arg) in signature.parameters.iter().zip(&arguments) {
-            if !param.ty.ty.is_equiv(&arg.infer_type().ty) {
+            let param_ty = self.eval_arg_ty(&param.ty)?;
+            if !param_ty.is_equiv(&arg.infer_type()) {
                 return Err(anyhow!(
                     "Parameter '{}' of function '{}' has type {} but got argument of type {}",
                     param.label.value,
                     ident,
-                    param.ty,
+                    param_ty,
                     arg.infer_type()
                 ));
             }
@@ -607,9 +686,6 @@ impl Interpreter {
 
         let action = match body {
             Body::Stmts(stmts) => {
-                let caller_context = self.context.clone();
-
-                self.context = Context::new();
                 for (param, arg) in signature.parameters.iter().zip(arguments) {
                     self.context.new_variable_from_arg(
                         &param.label.value,
@@ -618,11 +694,7 @@ impl Interpreter {
                     )?;
                 }
 
-                let action = self.exec_block(&stmts.clone(), false)?;
-
-                self.context = caller_context;
-
-                action
+                self.exec_block(&stmts.clone(), false)?
             }
             Body::Builtin(body) => Some(Action::Return(body(
                 arguments.iter().map(|arg| arg.value()).collect(),
@@ -638,7 +710,10 @@ impl Interpreter {
             None => Value::Unit,
         };
 
-        let declared_return_type = signature.ret.unwrap_or(Type::unit());
+        let declared_return_type = self.eval_ty(&signature.ret.unwrap_or(Type::unit()))?;
+
+        self.context = caller_context;
+
         if !return_value.infer_type().is_equiv(&declared_return_type) {
             return Err(anyhow!(
                 "Function '{}' returned value of type {} but declared a return type of {}",
@@ -867,7 +942,11 @@ impl Interpreter {
                     .iter()
                     .map(|argument| self.eval_arg_value(argument))
                     .collect();
-                self.eval_fn(&call.ident.value, arguments?)
+                self.eval_fn(
+                    &call.ident.value,
+                    call.generic_parameters.clone(),
+                    arguments?,
+                )
             }
             Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
             Expr::EnumInit(enum_init) => self.eval_enum_init(enum_init),

@@ -42,6 +42,25 @@ pub struct SimpleType {
     pub generic_parameters: Vec<Type>,
 }
 
+impl Display for SimpleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.ident.value.to_string())?;
+        if !self.generic_parameters.is_empty() {
+            f.write_str("<")?;
+            f.write_str(
+                &self
+                    .generic_parameters
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            )?;
+            f.write_str(">")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Type {
     // NOTE: May add more cases for types with explicit modules
@@ -75,7 +94,7 @@ impl Type {
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Simple(ty) => f.write_str(&ty.ident.value.to_string()),
+            Type::Simple(ty) => ty.fmt(f),
         }
     }
 }
