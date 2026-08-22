@@ -507,6 +507,9 @@ impl Interpreter {
         self.register_builtin("S_new_from_char", vec![("char", "C")], "S", |arguments| {
             Ok(Value::String(arguments[0].as_char()?.to_string()))
         });
+        self.register_builtin("S_is_empty", vec![("string", "S")], "B", |arguments| {
+            Ok(Value::Bool(arguments[0].as_string()?.is_empty()))
+        });
         self.register_builtin(
             "S_push",
             vec![("string", "S"), ("char", "C")],
