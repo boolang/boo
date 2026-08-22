@@ -1,6 +1,6 @@
 // Translation of program into elf executable binaries
 
-f gen_header(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
+f gen_elf(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
     // e_ident (\x7FELF then a bunch of random stuff (i just copied a random binary))
     l ident = S_concat(S_concat(S_concat(S_concat(S_new_from_char(I_chr(0x7f)), "ELF"), I_u32_to_bytes(0x00010102)), S_new_from_char(I_chr(0))), "meow :3");
     // e_type (ET_EXEC)
@@ -55,8 +55,4 @@ f gen_header(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
     p_type, p_flags), p_offset), p_vaddr), p_paddr), p_filesz), p_memsz), p_align);
 
     r S_concat(S_concat(elf_header, p_header), program);
-}
-
-f gen_elf(program: Program) -> S {
-    r gen_header(0, 0, 0);
 }

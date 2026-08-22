@@ -80,6 +80,12 @@ f kompile(ast: Ast) {
     i (O_is_some<Function>(main_fn)) {
         kompile_fn(&ctx, O_get<Function>(main_fn));
     }
+
+    emit_builtins(&ctx);
+
+    l elf = gen_elf(0, 0, 0, ctx.wr.buf);
+    write_to_file("bin", elf);
+    print("boo!");
 }
 
 f emit_builtins(ctx: &Ctx) {
