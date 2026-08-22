@@ -522,12 +522,26 @@ impl Interpreter {
             )?)),
         };
 
-        match action {
-            Some(Action::Break) => Err(anyhow!("break made it to top level of function??")),
-            Some(Action::Continue) => Err(anyhow!("continue made it to top level of function??")),
-            Some(Action::Return(value)) => Ok(value),
-            None => Ok(Value::Unit),
+        let return_value = match action {
+            Some(Action::Break) => return Err(anyhow!("break made it to top level of function??")),
+            Some(Action::Continue) => {
+                return Err(anyhow!("continue made it to top level of function??"));
+            }
+            Some(Action::Return(value)) => value,
+            None => Value::Unit,
+        };
+
+        let declared_return_type = signature.ret.unwrap_or(Type::unit());
+        if !return_value.infer_type().is_equiv(&declared_return_type) {
+            return Err(anyhow!(
+                "Function '{}' returned value of type {} but declared a return type of {}",
+                signature.ident.value,
+                return_value.infer_type(),
+                declared_return_type
+            ));
         }
+
+        Ok(return_value)
     }
 
     fn exec_block(&mut self, stmts: &[Stmt], is_loop: bool) -> Result<Option<Action>> {

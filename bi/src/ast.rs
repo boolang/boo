@@ -49,6 +49,16 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn unit() -> Self {
+        Self::Simple(SimpleType {
+            ident: Rich {
+                value: "U".into(),
+                span: Range { start: 0, end: 0 },
+            },
+            generic_parameters: vec![],
+        })
+    }
+
     pub fn is_equiv(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Simple(a), Type::Simple(b)) => {
