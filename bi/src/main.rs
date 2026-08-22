@@ -68,7 +68,7 @@ fn main() {
     let tokens = match tokenise(&expr) {
         Ok(tokens) => tokens,
         Err(e) => {
-            eprintln!("{e:?}");
+            eprintln!("{e}");
             return;
         }
     };
