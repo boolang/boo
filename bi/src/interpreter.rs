@@ -368,6 +368,16 @@ impl Interpreter {
         }
     }
 
+    pub fn register_stdlib_builtins(&mut self) {
+        self.register_builtin("print", vec![("string", "S")], |arguments| {
+            println!("{}", arguments[0].as_string()?);
+            Ok(Value::Unit)
+        });
+        self.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
+            Ok(Value::String(arguments[0].as_char()?.to_string()))
+        });
+    }
+
     pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(
         &mut self,
         ident: &str,
