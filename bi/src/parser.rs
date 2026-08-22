@@ -8,10 +8,11 @@ use winnow::stream::TokenSlice;
 use winnow::token::{literal, one_of};
 
 use crate::ast::{
-    ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, EnumInitExpr,
-    Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident, IfBlock, IfStmt,
-    LiteralExpr, MemberAccessExpr, MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt,
-    Struct, StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
+    ArgumentType, ArgumentValue, AssignmentStmt, Ast, Binding, Case, CaseBlock, Decl, ElseBlock,
+    Enum, EnumInitExpr, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident, IfBlock,
+    IfStmt, LiteralExpr, MatchPattern, MatchStmt, MemberAccessExpr, MemberPlaceExpr, Parameter,
+    PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, SubscriptExpr,
+    Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -177,6 +178,7 @@ fn stmt(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Stmt> {
         alt((
             r#if.map(Stmt::If),
             r#while.map(Stmt::While),
+            r#match.map(Stmt::Match),
             var_decl.map(Stmt::VarDecl),
             assignment.map(Stmt::Assignment),
             expr_stmt.map(Stmt::Expr),
@@ -231,6 +233,76 @@ fn r#while(input: &mut TokenSlice<Token>) -> winnow::ModalResult<WhileStmt> {
         )),
     )
     .map(|(condition, stmts)| WhileStmt { condition, stmts })
+    .parse_next(input)
+}
+
+fn r#match(input: &mut TokenSlice<Token>) -> winnow::ModalResult<MatchStmt> {
+    preceded(
+        literal(TokenKind::KMatch),
+        cut_err((
+            delimited(
+                literal(TokenKind::OpenPar),
+                expr,
+                literal(TokenKind::ClosePar),
+            ),
+            (delimited(
+                literal(TokenKind::OpenBrace),
+                case_blocks,
+                literal(TokenKind::CloseBrace),
+            )),
+        )),
+    )
+    .map(|(value, case_blocks)| MatchStmt { value, case_blocks })
+    .parse_next(input)
+}
+
+fn case_blocks(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<CaseBlock>> {
+    repeat(
+        0..,
+        seq!(
+            match_pattern,
+            _: literal(TokenKind::DoubleArrow),
+            block,
+        )
+        .map(|(pattern, stmts)| CaseBlock { pattern, stmts }),
+    )
+    .parse_next(input)
+}
+
+fn match_pattern(input: &mut TokenSlice<Token>) -> winnow::ModalResult<MatchPattern> {
+    alt((
+        seq!(
+            ident,
+            _: literal(TokenKind::DoubleColon),
+            ident,
+            _: literal(TokenKind::OpenPar),
+            binding,
+            _: literal(TokenKind::ClosePar),
+        )
+        .map(|(ident, case, binding)| MatchPattern {
+            ident,
+            case,
+            binding: Some(binding),
+        }),
+        seq!(
+            ident,
+            _: literal(TokenKind::DoubleColon),
+            ident,
+        )
+        .map(|(ident, case)| MatchPattern {
+            ident,
+            case,
+            binding: None,
+        }),
+    ))
+    .parse_next(input)
+}
+
+fn binding(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Binding> {
+    alt((
+        literal(TokenKind::Underscore).map(|_| Binding::Underscore),
+        ident.map(Binding::Ident),
+    ))
     .parse_next(input)
 }
 
