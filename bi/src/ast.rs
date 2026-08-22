@@ -67,12 +67,39 @@ impl Display for Type {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct ArgumentType {
+    pub ty: Type,
+    pub mutable: bool,
+}
+
+impl ArgumentType {
+    pub fn ty(&self) -> Type {
+        self.ty.clone()
+    }
+}
+
+impl Display for ArgumentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.mutable {
+            f.write_str("&")?;
+        }
+        self.ty.fmt(f)
+    }
+}
+
 // MARK: Expressions
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum ArgumentValue {
+    Immutable(Expr),
+    Mutable(PlaceExpr),
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FunctionCallExpr {
     pub ident: Ident,
-    pub arguments: Vec<Expr>,
+    pub arguments: Vec<ArgumentValue>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -215,7 +242,7 @@ pub struct Enum {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Parameter {
     pub label: Ident,
-    pub ty: Type,
+    pub ty: ArgumentType,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

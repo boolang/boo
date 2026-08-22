@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use crate::ast::{
-    AssignmentStmt, Ast, Decl, Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident,
-    LiteralExpr, MemberAccessExpr, MemberPlaceExpr, PlaceExpr, Rich, SimpleType, Stmt, Struct,
-    StructInitArgument, StructInitExpr, Type, VarDecl,
+    ArgumentValue, AssignmentStmt, Ast, Decl, Expr, Field, Function, FunctionCallExpr,
+    FunctionSignature, Ident, LiteralExpr, MemberAccessExpr, MemberPlaceExpr, PlaceExpr, Rich,
+    SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl,
 };
 use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
@@ -135,10 +135,12 @@ fn main() {
                         }),
                         Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                             ident: ident("print"),
-                            arguments: vec![Expr::MemberAccess(Box::new(MemberAccessExpr {
-                                base: Expr::Ident(ident("person")),
-                                member: ident("name"),
-                            }))],
+                            arguments: vec![ast::ArgumentValue::Immutable(Expr::MemberAccess(
+                                Box::new(MemberAccessExpr {
+                                    base: Expr::Ident(ident("person")),
+                                    member: ident("name"),
+                                }),
+                            ))],
                         })),
                         Stmt::Assignment(AssignmentStmt {
                             place: PlaceExpr::Member(Box::new(MemberPlaceExpr {
@@ -149,10 +151,29 @@ fn main() {
                         }),
                         Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                             ident: ident("print"),
-                            arguments: vec![Expr::MemberAccess(Box::new(MemberAccessExpr {
-                                base: Expr::Ident(ident("person")),
-                                member: ident("name"),
-                            }))],
+                            arguments: vec![ArgumentValue::Immutable(Expr::MemberAccess(
+                                Box::new(MemberAccessExpr {
+                                    base: Expr::Ident(ident("person")),
+                                    member: ident("name"),
+                                }),
+                            ))],
+                        })),
+                        Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
+                            ident: ident("print"),
+                            arguments: vec![ArgumentValue::Immutable(Expr::FunctionCall(
+                                FunctionCallExpr {
+                                    ident: ident("S_new_from_char"),
+                                    arguments: vec![ArgumentValue::Immutable(Expr::Subscript(
+                                        Box::new(SubscriptExpr {
+                                            base: Expr::MemberAccess(Box::new(MemberAccessExpr {
+                                                base: Expr::Ident(ident("person")),
+                                                member: ident("name"),
+                                            })),
+                                            index: int_lit(3),
+                                        }),
+                                    ))],
+                                },
+                            ))],
                         })),
                     ],
                 }),
@@ -166,6 +187,9 @@ fn main() {
     interpreter.register_builtin("print", vec![("string", "S")], |arguments| {
         println!("{}", arguments[0].as_string()?);
         Ok(Value::Unit)
+    });
+    interpreter.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
+        Ok(Value::String(arguments[0].as_char()?.to_string()))
     });
 
     interpreter.eval_fn("main", vec![]).unwrap();

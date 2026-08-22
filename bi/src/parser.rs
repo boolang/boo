@@ -8,9 +8,10 @@ use winnow::stream::TokenSlice;
 use winnow::token::{literal, one_of};
 
 use crate::ast::{
-    AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field, Function, FunctionCallExpr,
-    FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr, Parameter, PlaceExpr, Rich,
-    SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, Type, VarDecl, WhileStmt,
+    ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field,
+    Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr,
+    Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, Type,
+    VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -125,7 +126,10 @@ fn arguments(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Parameter
 
 fn argument(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Parameter> {
     seq!(ident, _: literal(TokenKind::Colon), r#type)
-        .map(|(label, ty)| Parameter { label, ty })
+        .map(|(label, ty)| Parameter {
+            label,
+            ty: ArgumentType { ty, mutable: false },
+        })
         .parse_next(input)
 }
 
@@ -304,7 +308,13 @@ fn function_call(input: &mut TokenSlice<Token>) -> winnow::ModalResult<FunctionC
         cut_err(separated(0.., expr, literal(TokenKind::Comma))),
         _: cut_err(literal(TokenKind::ClosePar)),
     )
-    .map(|(ident, arguments)| FunctionCallExpr { ident, arguments })
+    .map(|(ident, arguments): (_, Vec<Expr>)| FunctionCallExpr {
+        ident,
+        arguments: arguments
+            .into_iter()
+            .map(ArgumentValue::Immutable)
+            .collect(),
+    })
     .parse_next(input)
 }
 

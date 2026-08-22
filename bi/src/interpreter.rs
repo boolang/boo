@@ -1,16 +1,18 @@
 use std::range::Range;
+use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
-    Ast, Decl, Enum, Expr, Function, FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr,
-    SimpleType, Stmt, Struct, StructInitExpr, Type,
+    ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Decl, Enum, Expr, Function,
+    FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr, SimpleType, Stmt, Struct,
+    StructInitExpr, Type,
 };
 use anyhow::{Result, anyhow};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct StructValue {
     pub decl: Struct,
-    pub value: HashMap<String, Value>,
+    pub value: HashMap<String, Arc<Mutex<Value>>>,
 }
 
 impl StructValue {
@@ -19,7 +21,7 @@ impl StructValue {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Int(i128),
     Bool(bool),
@@ -27,6 +29,47 @@ pub enum Value {
     Character(char),
     Unit,
     Struct(StructValue),
+}
+
+#[derive(Clone, Debug)]
+pub enum ArgumentValue {
+    Immutable(Value),
+    Mutable(Arc<Mutex<Value>>),
+}
+
+impl ArgumentValue {
+    fn value(&self) -> Value {
+        match self {
+            Self::Immutable(value) => value.clone(),
+            Self::Mutable(value) => value.lock().expect("Poisoned lock").clone(),
+        }
+    }
+
+    fn is_mutable_reference(&self) -> bool {
+        match self {
+            Self::Immutable(_) => false,
+            Self::Mutable(_) => true,
+        }
+    }
+
+    fn set_value(&self, new_value: Value) -> Result<()> {
+        match self {
+            Self::Immutable(_) => Err(anyhow!(
+                "Value is not a mutable reference (attempted to take assign to it)"
+            )),
+            Self::Mutable(value) => {
+                *(value.lock().map_err(|_| anyhow!("Poisoned lock"))?) = new_value;
+                Ok(())
+            }
+        }
+    }
+
+    fn infer_type(&self) -> ArgumentType {
+        ArgumentType {
+            ty: self.value().infer_type(),
+            mutable: self.is_mutable_reference(),
+        }
+    }
 }
 
 fn simple_type(ident: &str) -> Type {
@@ -91,14 +134,14 @@ impl Value {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct Variable {
     mutable: bool,
-    value: Option<Value>,
+    value: Option<Arc<Mutex<Value>>>,
     ty: Type,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct Scope {
     is_loop: bool,
     variables: HashMap<String, Variable>,
@@ -113,7 +156,7 @@ impl Scope {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct Context {
     scopes: Vec<Scope>,
 }
@@ -149,6 +192,8 @@ impl Context {
                         "Read from '{}' before it was assigned a value",
                         ident
                     ))?
+                    .lock()
+                    .map_err(|_| anyhow!("Poisoned mutex"))?
                     .clone());
             }
         }
@@ -172,16 +217,21 @@ impl Context {
                         ident
                     ));
                 }
-                variable.value = Some(new_value);
+                match &variable.value {
+                    Some(location) => {
+                        *(location.lock().map_err(|_| anyhow!("Poisoned lock"))?) = new_value
+                    }
+                    None => variable.value = Some(Arc::new(Mutex::new(new_value))),
+                }
                 return Ok(());
             }
         }
         Err(anyhow!("No such variable '{}' in current context", ident))
     }
 
-    fn get_variable_mut(&mut self, ident: &str) -> Result<&mut Value> {
-        for scope in self.scopes.iter_mut().rev() {
-            if let Some(variable) = scope.variables.get_mut(ident) {
+    fn get_variable_mut(&self, ident: &str) -> Result<Arc<Mutex<Value>>> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(variable) = scope.variables.get(ident) {
                 if !variable.mutable {
                     return Err(anyhow!(
                         "Attempted to mutate immutable variable '{}'",
@@ -189,8 +239,8 @@ impl Context {
                     ));
                 }
 
-                match &mut variable.value {
-                    Some(value) => return Ok(value),
+                match &variable.value {
+                    Some(value) => return Ok(value.clone()),
                     None => {
                         return Err(anyhow!(
                             "Attempted to get mutable reference to uninitialized variable '{}' (likely through a member access)",
@@ -210,6 +260,16 @@ impl Context {
         ty: Option<Type>,
         value: Option<Value>,
     ) -> Result<()> {
+        self.new_variable_from_arg(ident, mutable, ty, value.map(ArgumentValue::Immutable))
+    }
+
+    fn new_variable_from_arg(
+        &mut self,
+        ident: &str,
+        mutable: bool,
+        ty: Option<Type>,
+        value: Option<ArgumentValue>,
+    ) -> Result<()> {
         for scope in self.scopes.iter() {
             if scope.variables.contains_key(ident) {
                 return Err(anyhow!("Variable already exists with name '{}'", ident));
@@ -219,7 +279,7 @@ impl Context {
         let ty = match ty {
             Some(ty) => ty,
             None => match &value {
-                Some(value) => value.infer_type(),
+                Some(value) => value.value().infer_type(),
                 None => {
                     return Err(anyhow!(
                         "Variable declaration for '{}' must have an initial value or type annotation",
@@ -227,6 +287,12 @@ impl Context {
                     ));
                 }
             },
+        };
+
+        let value = match value {
+            Some(ArgumentValue::Immutable(value)) => Some(Arc::new(Mutex::new(value))),
+            Some(ArgumentValue::Mutable(value)) => Some(value.clone()),
+            None => None,
         };
 
         self.scopes
@@ -317,10 +383,13 @@ impl Interpreter {
                         .iter()
                         .map(|(label, ty)| Parameter {
                             label: Ident::new((*label).into(), Range { start: 0, end: 0 }),
-                            ty: Type::Simple(SimpleType {
-                                ident: Ident::new((*ty).into(), Range { start: 0, end: 0 }),
-                                generic_parameters: vec![],
-                            }),
+                            ty: ArgumentType {
+                                ty: Type::Simple(SimpleType {
+                                    ident: Ident::new((*ty).into(), Range { start: 0, end: 0 }),
+                                    generic_parameters: vec![],
+                                }),
+                                mutable: false,
+                            },
                         })
                         .collect(),
                     ret: None,
@@ -330,7 +399,7 @@ impl Interpreter {
         );
     }
 
-    pub fn eval_fn(&mut self, ident: &str, arguments: Vec<Value>) -> Result<Value> {
+    pub fn eval_fn(&mut self, ident: &str, arguments: Vec<ArgumentValue>) -> Result<Value> {
         enum Body<'r> {
             Stmts(&'r Vec<Stmt>),
             Builtin(BuiltinFunctionBody),
@@ -378,10 +447,10 @@ impl Interpreter {
 
                 self.context = Context::new();
                 for (param, arg) in signature.parameters.iter().zip(arguments) {
-                    self.context.new_variable(
+                    self.context.new_variable_from_arg(
                         &param.label.value,
                         false,
-                        Some(param.ty.clone()),
+                        Some(param.ty.ty().clone()),
                         Some(arg),
                     )?;
                 }
@@ -392,7 +461,9 @@ impl Interpreter {
 
                 action
             }
-            Body::Builtin(body) => Some(Action::Return(body(arguments)?)),
+            Body::Builtin(body) => Some(Action::Return(body(
+                arguments.iter().map(|arg| arg.value()).collect(),
+            )?)),
         };
 
         match action {
@@ -436,15 +507,17 @@ impl Interpreter {
             Stmt::Assignment(assignment) => {
                 let value = self.eval_expr(&assignment.value)?;
                 let target = self.resolve_lexpr(&assignment.place)?;
-                if target.infer_type() != value.infer_type() {
+                let location = target.lock().map_err(|_| anyhow!("Poisoned lock"))?;
+                if location.infer_type() != value.infer_type() {
                     return Err(anyhow!(
                         "Attempted to assign value of type {} to {} (which has type {})",
                         value.infer_type(),
                         assignment.place,
-                        target.infer_type()
+                        location.infer_type()
                     ));
                 }
-                *target = value;
+                drop(location);
+                *(target.lock().map_err(|_| anyhow!("Poisoned lock"))?) = value;
             }
             Stmt::If(if_stmt) => {
                 for if_block in &if_stmt.if_blocks {
@@ -494,22 +567,26 @@ impl Interpreter {
         Ok(None)
     }
 
-    fn resolve_lexpr(&mut self, lexpr: &PlaceExpr) -> Result<&mut Value> {
+    fn resolve_lexpr(&mut self, lexpr: &PlaceExpr) -> Result<Arc<Mutex<Value>>> {
         match lexpr {
             PlaceExpr::Ident(ident) => self.context.get_variable_mut(&ident.value),
             PlaceExpr::Member(member) => {
                 let base = self.resolve_lexpr(&member.base)?;
-                let base_struct = base.as_struct_mut()?;
+                let base_struct = base
+                    .lock()
+                    .map_err(|_| anyhow!("Poisoned lock"))?
+                    .as_struct()?;
                 let ty = base_struct.ty();
                 base_struct
                     .value
-                    .get_mut(&member.member.value)
+                    .get(&member.member.value)
                     .ok_or(anyhow!(
                         "Value of type '{}' doesn't have member '{}' (at {:?})",
                         ty,
                         member.member.value,
                         member.member.span
                     ))
+                    .cloned()
             }
         }
     }
@@ -523,6 +600,17 @@ impl Interpreter {
         Ok(condition_value)
     }
 
+    fn eval_arg_value(&mut self, value: &ArgumentValueExpr) -> Result<ArgumentValue> {
+        match value {
+            ArgumentValueExpr::Immutable(expr) => {
+                Ok(ArgumentValue::Immutable(self.eval_expr(expr)?))
+            }
+            ArgumentValueExpr::Mutable(expr) => {
+                Ok(ArgumentValue::Mutable(self.resolve_lexpr(expr)?))
+            }
+        }
+    }
+
     fn eval_expr(&mut self, expr: &Expr) -> Result<Value> {
         match expr {
             Expr::Ident(ident) => self.context.get_variable(&ident.value),
@@ -532,7 +620,7 @@ impl Interpreter {
                 let arguments: Result<Vec<_>> = call
                     .arguments
                     .iter()
-                    .map(|argument| self.eval_expr(argument))
+                    .map(|argument| self.eval_arg_value(argument))
                     .collect();
                 self.eval_fn(&call.ident.value, arguments?)
             }
@@ -542,7 +630,7 @@ impl Interpreter {
                 let struct_value = base_value.as_struct()?;
 
                 match struct_value.value.get(&member_access.member.value) {
-                    Some(value) => Ok(value.clone()),
+                    Some(value) => Ok(value.lock().map_err(|_| anyhow!("Poisoned lock"))?.clone()),
                     None => Err(anyhow!(
                         "Value of type '{}' has no member '{}'",
                         struct_value.ty(),
@@ -615,7 +703,7 @@ impl Interpreter {
                     struct_decl.ident.value
                 ));
             }
-            values.insert(field.ident.value.clone(), value);
+            values.insert(field.ident.value.clone(), Arc::new(Mutex::new(value)));
         }
 
         Ok(Value::Struct(StructValue {
