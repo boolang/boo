@@ -34,6 +34,44 @@ f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
     Map_insert<BuiltinFunction>(&ctx.builtin_fns, ident, builtin);
 }
 
+f Ctx_load_stdlib_builtins(ctx: &Ctx) {
+    v exit_params = V_new<Parameter>();
+    V_push<Parameter>(&exit_params, Parameter {
+        label: "status",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "exit", exit_params);
+
+    v i_eq_params = V_new<Parameter>();
+    V_push<Parameter>(&i_eq_params, Parameter {
+        label: "first",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&i_eq_params, Parameter {
+        label: "second",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "I_eq", i_eq_params);
+}
+
 f kompile(ast: Ast) {
     v ctx = Ctx {
         structs: Map_new<Struct>(),
@@ -53,18 +91,7 @@ f kompile(ast: Ast) {
         }
     };
 
-    v exit_params = V_new<Parameter>();
-    V_push<Parameter>(&exit_params, Parameter {
-        label: "status",
-        ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "exit", exit_params);
+    Ctx_load_stdlib_builtins(&ctx);
 
     v idx = 0;
     w (I_lt(idx, V_len<Decl>(ast.decls))) {
