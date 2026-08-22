@@ -538,6 +538,27 @@ impl Interpreter {
             },
         );
 
+        self.register_builtin("I_le", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
+            Ok(Value::Bool(
+                arguments[0].value().as_int()? <= arguments[1].value().as_int()?,
+            ))
+        });
+        self.register_builtin("I_ge", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
+            Ok(Value::Bool(
+                arguments[0].value().as_int()? >= arguments[1].value().as_int()?,
+            ))
+        });
+        self.register_builtin("I_lt", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
+            Ok(Value::Bool(
+                arguments[0].value().as_int()? < arguments[1].value().as_int()?,
+            ))
+        });
+        self.register_builtin("I_gt", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
+            Ok(Value::Bool(
+                arguments[0].value().as_int()? > arguments[1].value().as_int()?,
+            ))
+        });
+
         self.register_builtin(
             "S_new_from_char",
             vec![("char", "C")],
@@ -925,13 +946,6 @@ impl Interpreter {
                     ident,
                     param_ty,
                     arg.infer_type()
-                ));
-            }
-            if param_ty.mutable != arg.is_mutable_reference() {
-                return Err(anyhow!(
-                    "Parameter '{}' of function '{}' is either mutable and got given an immutable value, or is immutable and got given a mutable reference",
-                    param.label.value,
-                    ident,
                 ));
             }
         }

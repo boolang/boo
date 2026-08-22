@@ -45,6 +45,8 @@ f main() {
     S_replace(&name, "max");
     print(name);
 
+    S_replace(&person.name, "max");
+
     l token1 = Token::Comma;
     l token2 = Token::Integer(1);
 
@@ -71,6 +73,9 @@ f main() {
     V_push<S>(&vec, "first");
     V_push<S>(&vec, "second");
     print(V_get<S>(vec, 1));
+    i (I_eq(V_len<S>(vec), 2)) {
+        print("Vector length is 2");
+    }
 
     Err<S>("Hi");
 }

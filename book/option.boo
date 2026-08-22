@@ -21,5 +21,5 @@ f O_is_some<T>(opt: O<T>) -> B {
 }
 
 f O_get<T>(opt: O<T>) -> T {
-    r V_get(opt.value, 0);
+    r V_get<T>(opt.value, 0);
 }
