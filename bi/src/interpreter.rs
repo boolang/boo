@@ -22,6 +22,12 @@ impl StructValue {
 }
 
 #[derive(Clone, Debug)]
+pub struct VectorValue {
+    pub vector: Vec<Value>,
+    pub ty: Type,
+}
+
+#[derive(Clone, Debug)]
 pub struct EnumValue {
     pub decl: Enum,
     pub case: usize,
@@ -43,6 +49,7 @@ pub enum Value {
     Unit,
     Struct(StructValue),
     Enum(Box<EnumValue>),
+    Vector(VectorValue),
 }
 
 #[derive(Clone, Debug)]
@@ -56,6 +63,13 @@ impl ArgumentValue {
         match self {
             Self::Immutable(value) => value.clone(),
             Self::Mutable(value) => value.lock().expect("Poisoned lock").clone(),
+        }
+    }
+
+    fn get_mut(&self) -> Result<Arc<Mutex<Value>>> {
+        match self {
+            Self::Immutable(_) => Err(anyhow!("Attempted to mutate immutable argument value")),
+            Self::Mutable(value) => Ok(value.clone()),
         }
     }
 
@@ -103,6 +117,10 @@ impl Value {
             Value::Unit => simple_type("U"),
             Value::Struct(value) => value.ty(),
             Value::Enum(value) => value.ty(),
+            Value::Vector(value) => Type::Simple(SimpleType {
+                ident: Ident::new("V".into(), Range { start: 0, end: 0 }),
+                generic_parameters: vec![value.ty.clone()],
+            }),
         }
     }
 
@@ -141,6 +159,13 @@ impl Value {
         }
     }
 
+    pub fn as_vector(&self) -> Result<VectorValue> {
+        match &self {
+            Value::Vector(value) => Ok(value.clone()),
+            _ => Err(anyhow!("Expected vector, got {}", self.infer_type())),
+        }
+    }
+
     pub fn as_enum(&self) -> Result<EnumValue> {
         match &self {
             Value::Enum(value) => Ok(*value.clone()),
@@ -152,6 +177,13 @@ impl Value {
         match self {
             Value::Struct(value) => Ok(value),
             _ => Err(anyhow!("Expected struct, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_vector_mut(&mut self) -> Result<&mut VectorValue> {
+        match self {
+            Value::Vector(value) => Ok(value),
+            _ => Err(anyhow!("Expected vector, got {}", self.infer_type())),
         }
     }
 }
@@ -372,7 +404,7 @@ impl Context {
     }
 }
 
-type BuiltinFunctionBody = Arc<dyn Fn(Vec<Value>) -> Result<Value>>;
+type BuiltinFunctionBody = Arc<dyn Fn(Vec<Type>, Vec<ArgumentValue>) -> Result<Value>>;
 
 #[derive(Clone)]
 struct BuiltinFunction {
@@ -436,8 +468,8 @@ impl Interpreter {
     }
 
     pub fn register_stdlib_builtins(&mut self) {
-        self.register_builtin("print", vec![("string", "S")], "U", |arguments| {
-            println!("{}", arguments[0].as_string()?);
+        self.register_builtin("print", vec![("string", "S")], "U", |_, arguments| {
+            println!("{}", arguments[0].value().as_string()?);
             Ok(Value::Unit)
         });
 
@@ -445,9 +477,9 @@ impl Interpreter {
             "or",
             vec![("first", "B"), ("second", "B")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_bool()? || arguments[1].as_bool()?,
+                    arguments[0].value().as_bool()? || arguments[1].value().as_bool()?,
                 ))
             },
         );
@@ -455,36 +487,36 @@ impl Interpreter {
             "and",
             vec![("first", "B"), ("second", "B")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_bool()? && arguments[1].as_bool()?,
+                    arguments[0].value().as_bool()? && arguments[1].value().as_bool()?,
                 ))
             },
         );
-        self.register_builtin("not", vec![("first", "B")], "B", |arguments| {
-            Ok(Value::Bool(!arguments[0].as_bool()?))
+        self.register_builtin("not", vec![("first", "B")], "B", |_, arguments| {
+            Ok(Value::Bool(!arguments[0].value().as_bool()?))
         });
 
         self.register_builtin(
             "C_eq",
             vec![("char", "C"), ("char", "C")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_char()? == arguments[1].as_char()?,
+                    arguments[0].value().as_char()? == arguments[1].value().as_char()?,
                 ))
             },
         );
-        self.register_builtin("C_ord", vec![("char", "C")], "I", |arguments| {
-            Ok(Value::Int(arguments[0].as_char()? as _))
+        self.register_builtin("C_ord", vec![("char", "C")], "I", |_, arguments| {
+            Ok(Value::Int(arguments[0].value().as_char()? as _))
         });
         self.register_builtin(
             "C_le",
             vec![("char", "C"), ("char", "C")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_char()? <= arguments[1].as_char()?,
+                    arguments[0].value().as_char()? <= arguments[1].value().as_char()?,
                 ))
             },
         );
@@ -492,27 +524,30 @@ impl Interpreter {
             "C_ge",
             vec![("char", "C"), ("char", "C")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_char()? >= arguments[1].as_char()?,
+                    arguments[0].value().as_char()? >= arguments[1].value().as_char()?,
                 ))
             },
         );
 
-        self.register_builtin("S_new_from_char", vec![("char", "C")], "S", |arguments| {
-            Ok(Value::String(arguments[0].as_char()?.to_string()))
-        });
-        self.register_builtin("S_is_empty", vec![("string", "S")], "B", |arguments| {
-            Ok(Value::Bool(arguments[0].as_string()?.is_empty()))
+        self.register_builtin(
+            "S_new_from_char",
+            vec![("char", "C")],
+            "S",
+            |_, arguments| Ok(Value::String(arguments[0].value().as_char()?.to_string())),
+        );
+        self.register_builtin("S_is_empty", vec![("string", "S")], "B", |_, arguments| {
+            Ok(Value::Bool(arguments[0].value().as_string()?.is_empty()))
         });
         self.register_builtin(
             "S_push",
             vec![("string", "S"), ("char", "C")],
             "S",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::String({
-                    let mut s = arguments[0].as_string()?;
-                    s.push(arguments[1].as_char()?);
+                    let mut s = arguments[0].value().as_string()?;
+                    s.push(arguments[1].value().as_char()?);
                     s
                 }))
             },
@@ -521,9 +556,10 @@ impl Interpreter {
             "S_advance",
             vec![("string", "S"), ("offset", "I")],
             "S",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::String(
-                    arguments[0].as_string()?[arguments[1].as_int()? as usize..].to_owned(),
+                    arguments[0].value().as_string()?[arguments[1].value().as_int()? as usize..]
+                        .to_owned(),
                 ))
             },
         );
@@ -531,41 +567,146 @@ impl Interpreter {
             "S_eq",
             vec![("string", "S"), ("string", "S")],
             "B",
-            |arguments| {
+            |_, arguments| {
                 Ok(Value::Bool(
-                    arguments[0].as_string()? == arguments[1].as_string()?,
+                    arguments[0].value().as_string()? == arguments[1].value().as_string()?,
                 ))
             },
         );
 
-        self.register_builtin("I_add", vec![("a", "I"), ("b", "I")], "I", |arguments| {
-            Ok(Value::Int(arguments[0].as_int()? + arguments[1].as_int()?))
+        self.register_builtin(
+            "I_add",
+            vec![("a", "I"), ("b", "I")],
+            "I",
+            |_, arguments| {
+                Ok(Value::Int(
+                    arguments[0].value().as_int()? + arguments[1].value().as_int()?,
+                ))
+            },
+        );
+        self.register_builtin(
+            "I_sub",
+            vec![("a", "I"), ("b", "I")],
+            "I",
+            |_, arguments| {
+                Ok(Value::Int(
+                    arguments[0].value().as_int()? - arguments[1].value().as_int()?,
+                ))
+            },
+        );
+        self.register_builtin(
+            "I_mul",
+            vec![("a", "I"), ("b", "I")],
+            "I",
+            |_, arguments| {
+                Ok(Value::Int(
+                    arguments[0].value().as_int()? * arguments[1].value().as_int()?,
+                ))
+            },
+        );
+        self.register_builtin("I_neg", vec![("a", "I")], "I", |_, arguments| {
+            Ok(Value::Int(-arguments[0].value().as_int()?))
         });
-        self.register_builtin("I_sub", vec![("a", "I"), ("b", "I")], "I", |arguments| {
-            Ok(Value::Int(arguments[0].as_int()? - arguments[1].as_int()?))
-        });
-        self.register_builtin("I_mul", vec![("a", "I"), ("b", "I")], "I", |arguments| {
-            Ok(Value::Int(arguments[0].as_int()? * arguments[1].as_int()?))
-        });
-        self.register_builtin("I_neg", vec![("a", "I")], "I", |arguments| {
-            Ok(Value::Int(-arguments[0].as_int()?))
-        });
-        self.register_builtin("I_to_string", vec![("a", "I")], "S", |arguments| {
-            Ok(Value::String(arguments[0].as_int()?.to_string()))
+        self.register_builtin("I_to_string", vec![("a", "I")], "S", |_, arguments| {
+            Ok(Value::String(arguments[0].value().as_int()?.to_string()))
         });
 
-        self.register_builtin("read", vec![("path", "S")], "S", |arguments| {
+        self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
             Ok(Value::String(
-                std::fs::read_to_string(arguments[0].as_string()?).unwrap(),
+                std::fs::read_to_string(arguments[0].value().as_string()?).unwrap(),
             ))
         });
+
+        // MARK: Vector built-ins
+
+        let vec_t = SimpleType::new("V", vec![SimpleType::new("T", vec![])]);
+        let t = SimpleType::new("T", vec![]);
+        let int = SimpleType::new("I", vec![]);
+        let unit = SimpleType::new("U", vec![]);
+        self.register_generic_builtin("V_new", vec!["T"], vec![], vec_t.clone(), |generics, _| {
+            Ok(Value::Vector(VectorValue {
+                vector: vec![],
+                ty: generics[0].clone(),
+            }))
+        });
+
+        self.register_generic_builtin(
+            "V_push",
+            vec!["T"],
+            vec![("vec", vec_t.clone(), true), ("element", t.clone(), false)],
+            unit.clone(),
+            |_, arguments| {
+                let mutex = arguments[0].get_mut()?;
+                mutex
+                    .lock()
+                    .map_err(|_| anyhow!("Poisoned lock"))?
+                    .as_vector_mut()?
+                    .vector
+                    .push(arguments[1].value());
+                Ok(Value::Unit)
+            },
+        );
+
+        self.register_generic_builtin(
+            "V_get",
+            vec!["T"],
+            vec![("vec", vec_t.clone(), false), ("idx", int.clone(), false)],
+            t.clone(),
+            |_, arguments| {
+                let vector = arguments[0].value().as_vector()?;
+                let idx = arguments[1].value().as_int()?;
+                if idx < 0 || idx as usize >= vector.vector.len() {
+                    Err(anyhow!(
+                        "V_get, attempted to access element at index {} in vector of length {}",
+                        idx,
+                        vector.vector.len()
+                    ))
+                } else {
+                    Ok(vector.vector[idx as usize].clone())
+                }
+            },
+        );
     }
 
-    pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(
+    pub fn register_builtin<F: Fn(Vec<Type>, Vec<ArgumentValue>) -> Result<Value> + 'static>(
         &mut self,
         ident: &str,
         parameters: Vec<(&'static str, &'static str)>,
         return_type: &'static str,
+        body: F,
+    ) {
+        self.register_generic_builtin(
+            ident,
+            vec![],
+            parameters
+                .iter()
+                .map(|(label, param)| {
+                    (
+                        *label,
+                        SimpleType {
+                            ident: Ident::new((*param).into(), Range { start: 0, end: 0 }),
+                            generic_parameters: vec![],
+                        },
+                        false,
+                    )
+                })
+                .collect(),
+            SimpleType {
+                ident: Ident::new(return_type.into(), Range { start: 0, end: 0 }),
+                generic_parameters: vec![],
+            },
+            body,
+        );
+    }
+
+    pub fn register_generic_builtin<
+        F: Fn(Vec<Type>, Vec<ArgumentValue>) -> Result<Value> + 'static,
+    >(
+        &mut self,
+        ident: &str,
+        generic_parameters: Vec<&'static str>,
+        parameters: Vec<(&'static str, SimpleType, bool)>,
+        return_type: SimpleType,
         body: F,
     ) {
         self.builtins.insert(
@@ -573,24 +714,21 @@ impl Interpreter {
             BuiltinFunction {
                 signature: FunctionSignature {
                     ident: Ident::new(ident.into(), Range { start: 0, end: 0 }),
-                    generic_parameters: vec![],
+                    generic_parameters: generic_parameters
+                        .into_iter()
+                        .map(|param| Ident::new(param.into(), Range { start: 0, end: 0 }))
+                        .collect(),
                     parameters: parameters
                         .iter()
-                        .map(|(label, ty)| Parameter {
+                        .map(|(label, ty, mutable)| Parameter {
                             label: Ident::new((*label).into(), Range { start: 0, end: 0 }),
                             ty: ArgumentType {
-                                ty: Type::Simple(SimpleType {
-                                    ident: Ident::new((*ty).into(), Range { start: 0, end: 0 }),
-                                    generic_parameters: vec![],
-                                }),
-                                mutable: false,
+                                ty: Type::Simple(ty.clone()),
+                                mutable: *mutable,
                             },
                         })
                         .collect(),
-                    ret: Some(Type::Simple(SimpleType {
-                        ident: Ident::new((*return_type).into(), Range { start: 0, end: 0 }),
-                        generic_parameters: vec![],
-                    })),
+                    ret: Some(Type::Simple(return_type)),
                 },
                 body: Arc::new(body),
             },
@@ -619,6 +757,26 @@ impl Interpreter {
         // Allow built-in types
         if ["S", "C", "I", "U", "B"].contains(&ty.to_string().as_str()) {
             return Ok(ty.clone());
+        }
+
+        // Special case for single-parameter built-in generic types
+        match ty {
+            Type::Simple(simple) => {
+                if simple.ident.value == "V" {
+                    if simple.generic_parameters.len() != 1 {
+                        return Err(anyhow!(
+                            "{} expects 1 generic parameter, got {}",
+                            simple.ident.value,
+                            simple.generic_parameters.len()
+                        ));
+                    }
+                    let param = self.eval_ty(&simple.generic_parameters[0])?;
+                    return Ok(Type::Simple(SimpleType {
+                        ident: Ident::new(simple.ident.value.clone(), Range { start: 0, end: 0 }),
+                        generic_parameters: vec![param],
+                    }));
+                }
+            }
         }
 
         match ty {
@@ -696,10 +854,12 @@ impl Interpreter {
 
         self.context = Context::new();
         self.context
-            .add_generic_params(signature.generic_parameters, generic_arguments)?;
+            .add_generic_params(signature.generic_parameters, generic_arguments.clone())?;
 
+        let mut param_types = vec![];
         for (param, arg) in signature.parameters.iter().zip(&arguments) {
             let param_ty = self.eval_arg_ty(&param.ty)?;
+            param_types.push(param_ty.clone());
             if !param_ty.is_equiv(&arg.infer_type()) {
                 return Err(anyhow!(
                     "Parameter '{}' of function '{}' has type {} but got argument of type {}",
@@ -707,6 +867,13 @@ impl Interpreter {
                     ident,
                     param_ty,
                     arg.infer_type()
+                ));
+            }
+            if param_ty.mutable != arg.is_mutable_reference() {
+                return Err(anyhow!(
+                    "Parameter '{}' of function '{}' is either mutable and got given an immutable value, or is immutable and got given a mutable reference",
+                    param.label.value,
+                    ident,
                 ));
             }
         }
@@ -723,9 +890,13 @@ impl Interpreter {
 
                 self.exec_block(&stmts.clone(), false)?
             }
-            Body::Builtin(body) => Some(Action::Return(body(
-                arguments.iter().map(|arg| arg.value()).collect(),
-            )?)),
+            Body::Builtin(body) => {
+                let generics = generic_arguments
+                    .iter()
+                    .map(|ty| self.eval_ty(ty))
+                    .collect::<Result<Vec<_>>>()?;
+                Some(Action::Return(body(generics, arguments)?))
+            }
         };
 
         let return_value = match action {

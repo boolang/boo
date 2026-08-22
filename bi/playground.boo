@@ -60,4 +60,9 @@ f main() {
 
     v number: I;
     number = 1;
+
+    v vec = V_new<S>();
+    V_push<S>(&vec, "first");
+    V_push<S>(&vec, "second");
+    print(V_get<S>(vec, 1));
 }

@@ -42,6 +42,18 @@ pub struct SimpleType {
     pub generic_parameters: Vec<Type>,
 }
 
+impl SimpleType {
+    pub fn new(ident: &'static str, generic_parameters: Vec<SimpleType>) -> Self {
+        SimpleType {
+            ident: Ident::new(ident.into(), Range { start: 0, end: 0 }),
+            generic_parameters: generic_parameters
+                .into_iter()
+                .map(|param| Type::Simple(param))
+                .collect(),
+        }
+    }
+}
+
 impl Display for SimpleType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.ident.value.to_string())?;
