@@ -35,4 +35,10 @@ f main() {
     l token2 = Token::Integer(1);
 
     print(id<S>(name));
+
+    m (token1) {
+        Token::Comma => {
+            print("comma");
+        }
+    }
 }

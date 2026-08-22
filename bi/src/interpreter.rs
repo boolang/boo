@@ -821,7 +821,7 @@ impl Interpreter {
                 }
 
                 let block = match_stmt.case_blocks.iter().find(|case| {
-                    case.pattern.ident.value == enum_value.decl.cases[enum_value.case].ident.value
+                    case.pattern.case.value == enum_value.decl.cases[enum_value.case].ident.value
                 });
                 if let Some(block) = block {
                     let vars: Vec<(String, Variable)> = match (
