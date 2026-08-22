@@ -102,7 +102,7 @@ fn anyspace(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<()> {
 }
 
 fn token(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
-    cut_err(alt((keyword, number, string, chr, sym))).parse_next(input)
+    cut_err(alt((sym, keyword, number, string, chr))).parse_next(input)
 }
 
 fn ident<'i>(input: &mut LocatingSlice<&'i str>) -> winnow::ModalResult<&'i str> {
@@ -169,7 +169,6 @@ fn sym(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
             '_' => empty.value(TokenKind::Underscore),
             _ => fail,
         },
-        cut_err(fail.context(winnow::error::StrContext::Label("unexpected character"))),
     ))
     .with_span()
     .map(|(kind, span)| Token {

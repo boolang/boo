@@ -48,6 +48,9 @@ f main() {
         Token::Comma => {
             print("comma");
         }
+        _ => {
+            print("not comma");
+        }
     }
 
     v box = Box<S> { value: "value" };

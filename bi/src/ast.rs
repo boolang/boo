@@ -231,6 +231,7 @@ pub struct IfStmt {
 pub struct MatchStmt {
     pub value: Expr,
     pub case_blocks: Vec<CaseBlock>,
+    pub default_block: Option<Vec<Stmt>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

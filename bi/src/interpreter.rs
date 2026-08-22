@@ -877,6 +877,8 @@ impl Interpreter {
                         _ => vec![],
                     };
                     return self.exec_block_with_vars(&block.stmts, false, vars);
+                } else if let Some(stmts) = &match_stmt.default_block {
+                    return self.exec_block(stmts, false);
                 }
             }
             Stmt::While(while_stmt) => loop {

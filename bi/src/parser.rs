@@ -252,12 +252,23 @@ fn r#match(input: &mut TokenSlice<Token>) -> winnow::ModalResult<MatchStmt> {
             ),
             (delimited(
                 literal(TokenKind::OpenBrace),
-                case_blocks,
+                seq!(
+                    case_blocks,
+                    opt(seq!(
+                        _: literal(TokenKind::Underscore),
+                        _: literal(TokenKind::DoubleArrow),
+                        block,
+                    )),
+                ),
                 literal(TokenKind::CloseBrace),
             )),
         )),
     )
-    .map(|(value, case_blocks)| MatchStmt { value, case_blocks })
+    .map(|(value, (case_blocks, default_block))| MatchStmt {
+        value,
+        case_blocks,
+        default_block: default_block.map(|x| x.0),
+    })
     .parse_next(input)
 }
 
