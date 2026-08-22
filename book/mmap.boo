@@ -3,7 +3,7 @@ s MMKey {
     generic_args: V<Type>,
 }
 
-f MMKey_eq(left: MMKey, right: MMKey) {
+f MMKey_eq(left: MMKey, right: MMKey) -> B {
     i (not(S_eq(left.ident, right.ident))) {
         r n;
     }
@@ -23,7 +23,7 @@ f MMKey_eq(left: MMKey, right: MMKey) {
     r y;
 }
 
-f Type_eq(left: Type, right: Type) {
+f Type_eq(left: Type, right: Type) -> B {
     i (not(S_eq(left.ident, right.ident))) {
         r n;
     }

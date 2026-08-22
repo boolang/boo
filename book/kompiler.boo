@@ -45,8 +45,8 @@ f kompile(ast: Ast) {
         wr: AsmWriter {
             base_addr: 0x400000,
             buf: "",
-            jumps: Map_new<I>(),
-            pending_jumps: Map_new<V<I>>(),
+            jumps: MMap_new<I>(),
+            pending_jumps: MMap_new<V<I>>(),
             constant_loads: Map_new<V<PendingMov>>(),
             function_prelude_location: -1,
             locals: V_new<Local>()
@@ -161,6 +161,8 @@ f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
         );
         idx = I_add(idx, 1);
     }
+
+    r new_type;
 }
 
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
@@ -281,8 +283,9 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
             exit();
         }
 
-        AW_call(&ctx.wr, call.ident);
-        queue_fn(&ctx, MMKey { ident: call.ident, generic_args: call.generic_parameters });
+        l key = MMKey { ident: call.ident, generic_args: call.generic_parameters };
+        AW_call(&ctx.wr, key);
+        queue_fn(&ctx, key);
     }
 
     l nargs = V_len<ArgumentValue>(call.arguments);
@@ -359,6 +362,6 @@ f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
             exit();
         }
 
-        AW_call(&ctx.wr, call.ident);
+        AW_call(&ctx.wr, MMKey { ident: call.ident, generic_args: V_new<Type>() });
     }
 }

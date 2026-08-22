@@ -17,9 +17,9 @@ s AsmWriter {
     base_addr: I,
     buf: S,
     // Maps symbol names to absolute offsets
-    jumps: Map<I>,
+    jumps: MMap<I>,
     // Stores locations of jumps that are waiting to be rewritten to the given block.
-    pending_jumps: Map<V<I>>,
+    pending_jumps: MMap<V<I>>,
     // Movs to rewrite when we emit constants (after emitting all functions). The map
     // is keyed by integers converted to strings
     constant_loads: Map<V<PendingMov>>,
@@ -42,12 +42,12 @@ f AW_write(wr: &AsmWriter, data: S) {
 
 f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
     l fn_idx = AW_idx(wr);
-    Map_insert<I>(&wr.jumps, ident, fn_idx);
+    MMap_insert<I>(&wr.jumps, MMKey { ident: ident, generic_args: V_new<Type>() }, fn_idx);
     AW_write(&wr, fn.asm);
 
     // Fill in pending jumps
     l addr = I_add(fn_idx, wr.base_addr);
-    l lookup = Map_get<V<I>>(wr.pending_jumps, ident);
+    l lookup = MMap_get<V<I>>(wr.pending_jumps, MMKey { ident: ident, generic_args: V_new<Type>() });
     i (O_is_some<V<I>>(lookup)) {
         l offsets = O_get<V<I>>(lookup);
         v idx = 0;
@@ -66,7 +66,7 @@ f AW_emit_dummy_function_prelude(wr: &AsmWriter, key: MMKey) {
 
     // Fill in pending jumps
     l addr = I_add(fn_idx, wr.base_addr);
-    l lookup = Map_get<V<I>>(wr.pending_jumps, key.ident);
+    l lookup = MMap_get<V<I>>(wr.pending_jumps, key);
     i (O_is_some<V<I>>(lookup)) {
         l offsets = O_get<V<I>>(lookup);
         v idx = 0;
@@ -210,21 +210,34 @@ f Map_V_push<T>(map: &Map<V<T>>, key: S, value: T) {
     }
 }
 
+f MMap_V_push<T>(map: &MMap<V<T>>, key: MMKey, value: T) {
+    l vec = MMap_get<V<T>>(map, key);
+    i (O_is_some<V<T>>(vec)) {
+        v new_vec = O_get<V<T>>(vec);
+        V_push<T>(&new_vec, value);
+        MMap_insert<V<T>>(&map, key, new_vec);
+    } e {
+        v new_vec = V_new<T>();
+        V_push<T>(&new_vec, value);
+        MMap_insert<V<T>>(&map, key, new_vec);
+    }
+}
+
 f encode_mov_rax(value: I) -> S {
     r S_concat(S_new_from_char(I_chr(0xb8)), I_u32_to_bytes(value));
 }
 
-f AW_call(wr: &AsmWriter, symbol: S) {
+f AW_call(wr: &AsmWriter, symbol: MMKey) {
     // If symbol in jumps, emit concrete call instr
     // Otherwise, emit space for call instr
-    l lookup = Map_get<I>(wr.jumps, symbol);
+    l lookup = MMap_get<I>(wr.jumps, symbol);
     v addr = 0x41414141;
     i (O_is_some<I>(lookup)) {
         addr = I_add(O_get<I>(lookup), wr.base_addr);
     } e {
         // Save offset for later
         l offset = I_add(S_length(wr.buf), 1);
-        Map_V_push<I>(&wr.pending_jumps, symbol, offset);
+        MMap_V_push<I>(&wr.pending_jumps, symbol, offset);
     }
 
     l code = S_concat(encode_mov_rax(addr), I_u16_to_bytes(0xd0ff));

@@ -37,6 +37,7 @@ f Q_contains_mmkey(queue: Q<MMKey>, element: MMKey) -> B {
 		i (MMKey_eq(element, V_get<MMKey>(queue.queue, idx))) {
 			r y;
 		}
+		idx = I_add(idx, 1);
 	}
 	r n;
 }
