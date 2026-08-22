@@ -260,15 +260,28 @@ impl Context {
         ty: Option<Type>,
         value: Option<Value>,
     ) -> Result<()> {
-        self.new_variable_from_arg(ident, mutable, ty, value.map(ArgumentValue::Immutable))
+        self.new_variable_from_storage(ident, mutable, ty, value.map(|x| Arc::new(Mutex::new(x))))
     }
 
     fn new_variable_from_arg(
         &mut self,
         ident: &str,
+        ty: Option<Type>,
+        value: ArgumentValue,
+    ) -> Result<()> {
+        let (mutable, storage) = match value {
+            ArgumentValue::Immutable(value) => (false, Some(Arc::new(Mutex::new(value)))),
+            ArgumentValue::Mutable(value) => (true, Some(value.clone())),
+        };
+        self.new_variable_from_storage(ident, mutable, ty, storage)
+    }
+
+    fn new_variable_from_storage(
+        &mut self,
+        ident: &str,
         mutable: bool,
         ty: Option<Type>,
-        value: Option<ArgumentValue>,
+        storage: Option<Arc<Mutex<Value>>>,
     ) -> Result<()> {
         for scope in self.scopes.iter() {
             if scope.variables.contains_key(ident) {
@@ -278,8 +291,11 @@ impl Context {
 
         let ty = match ty {
             Some(ty) => ty,
-            None => match &value {
-                Some(value) => value.value().infer_type(),
+            None => match &storage {
+                Some(storage) => storage
+                    .lock()
+                    .map_err(|_| anyhow!("Poisoned lock"))?
+                    .infer_type(),
                 None => {
                     return Err(anyhow!(
                         "Variable declaration for '{}' must have an initial value or type annotation",
@@ -289,17 +305,18 @@ impl Context {
             },
         };
 
-        let value = match value {
-            Some(ArgumentValue::Immutable(value)) => Some(Arc::new(Mutex::new(value))),
-            Some(ArgumentValue::Mutable(value)) => Some(value.clone()),
-            None => None,
-        };
-
         self.scopes
             .last_mut()
             .ok_or(anyhow!("Context with no scopes??"))?
             .variables
-            .insert(String::from(ident), Variable { mutable, value, ty });
+            .insert(
+                String::from(ident),
+                Variable {
+                    mutable,
+                    value: storage,
+                    ty,
+                },
+            );
 
         Ok(())
     }
@@ -489,9 +506,8 @@ impl Interpreter {
                 for (param, arg) in signature.parameters.iter().zip(arguments) {
                     self.context.new_variable_from_arg(
                         &param.label.value,
-                        false,
                         Some(param.ty.ty().clone()),
-                        Some(arg),
+                        arg,
                     )?;
                 }
 

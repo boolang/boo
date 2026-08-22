@@ -80,6 +80,10 @@ impl ArgumentType {
     pub fn ty(&self) -> Type {
         self.ty.clone()
     }
+
+    pub fn is_equiv(&self, other: &ArgumentType) -> bool {
+        self.ty.is_equiv(&other.ty) && self.mutable == other.mutable
+    }
 }
 
 impl Display for ArgumentType {
