@@ -36,7 +36,7 @@ f parse(input: S) -> Ast {
 // MARK: Functions
 
 f parse_function(input: S) -> Parse<Function> {
-	dbg_print("> function");
+	parser_dbg_print("> function");
     v acc = input;
 
     v result = next_token(acc);
@@ -82,7 +82,7 @@ f parse_function(input: S) -> Parse<Function> {
     l stmts = parse_block(acc);
     acc = stmts.rest;
     
-	dbg_print("< function");
+	parser_dbg_print("< function");
     r Parse<Function> {
         rest: acc,
         value: Function {
@@ -99,7 +99,7 @@ f parse_function(input: S) -> Parse<Function> {
 
 f parse_block(input: S) -> Parse<V<Stmt>> {
     v acc = input;
-	dbg_print("> block");
+	parser_dbg_print("> block");
 
     acc = next_token(acc).rest; // OpenBrace
 
@@ -118,13 +118,13 @@ f parse_block(input: S) -> Parse<V<Stmt>> {
         V_push<Stmt>(&stmts, stmt.value);
     }
 
-	dbg_print("< block");
+	parser_dbg_print("< block");
     r Parse<V<Stmt>> { rest: acc, value: stmts };
 }
 
 f parse_stmt(input: S) -> Parse<Stmt> {
     v acc = input;
-	dbg_print("> stmt");
+	parser_dbg_print("> stmt");
 
     v result = next_token(acc);
 
@@ -132,31 +132,31 @@ f parse_stmt(input: S) -> Parse<Stmt> {
         Token::KIf => {
             l if = parse_if(acc);
             acc = if.rest;
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::If(if.value) };
         }
         Token::KWhile => {
             l while = parse_while(acc);
             acc = while.rest;
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::While(while.value) };
         }
         Token::KMatch => {
             l match = parse_match(acc);
             acc = match.rest;
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Match(match.value) };
         }
         Token::KBreak => {
             acc = result.rest;
             acc = next_token(acc).rest; // Semicolon
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Break };
         }
         Token::KContinue => {
             acc = result.rest;
             acc = next_token(acc).rest; // Semicolon
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Continue };
         }
         Token::KReturn => {
@@ -165,7 +165,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
             result = next_token(acc);
             m (result.value) {
                 Token::Semicolon => {
-                	dbg_print("< stmt");
+                	parser_dbg_print("< stmt");
                     r Parse<Stmt> { rest: acc, value: Stmt::Return(O_none<Expr>()) };
                 }
             }
@@ -173,19 +173,19 @@ f parse_stmt(input: S) -> Parse<Stmt> {
             l expr = parse_expr(acc);
             acc = expr.rest;
             acc = next_token(acc).rest; // Semicolon
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Return(O_some<Expr>(expr.value)) };
         }
         Token::KLet => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
         Token::KVar => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
-        	dbg_print("< stmt");
+        	parser_dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
         _ => {
@@ -201,7 +201,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
 
                     acc = next_token(acc).rest; // Semicolon
 
-                	dbg_print("< stmt");
+                	parser_dbg_print("< stmt");
                     r Parse<Stmt> {
                         rest: acc,
                         value: Stmt::Assignment(AssignmentStmt {
@@ -211,7 +211,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
                     };
                 }
                 Token::Semicolon => {
-                	dbg_print("< stmt");
+                	parser_dbg_print("< stmt");
                     r Parse<Stmt> { rest: acc, value: Stmt::Expr(expr.value) };
                 }
             }
@@ -221,7 +221,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
 
 f parse_if(input: S) -> Parse<IfStmt> {
     v acc = input;
-    dbg_print("> if");
+    parser_dbg_print("> if");
 
     v if_bodies = V_new<IfBlock>();
     v else_block = O_none<ElseBlock>();
@@ -259,13 +259,13 @@ f parse_if(input: S) -> Parse<IfStmt> {
         b;
     }
     
-    dbg_print("< if");
+    parser_dbg_print("< if");
     r Parse<IfStmt> { rest: acc, value: IfStmt { if_blocks: if_bodies, else_block: else_block } };
 }
 
 f parse_while(input: S) -> Parse<WhileStmt> {
     v acc = input;
-    dbg_print("> while");
+    parser_dbg_print("> while");
 
     acc = next_token(acc).rest; // KWhile;
     acc = next_token(acc).rest; // OpenPar;
@@ -278,13 +278,13 @@ f parse_while(input: S) -> Parse<WhileStmt> {
     l body = parse_block(acc);
     acc = body.rest;
     
-    dbg_print("< while");
+    parser_dbg_print("< while");
     r Parse<WhileStmt> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
 }
 
 f parse_match(input: S) -> Parse<MatchStmt> {
     v acc = input;
-    dbg_print("> match");
+    parser_dbg_print("> match");
 
     acc = next_token(acc).rest; // KMatch;
     acc = next_token(acc).rest; // OpenPar;
@@ -323,20 +323,13 @@ f parse_match(input: S) -> Parse<MatchStmt> {
         V_push<CaseBlock>(&cases, case.value);
     }
     
-    // s MatchStmt {
-    //     value: Expr,
-    //     case_blocks: V<CaseBlock>,
-    //     default_block: O<V<Stmt>>,
-    // }
-
-    
-    dbg_print("< match");
+    parser_dbg_print("< match");
     r Parse<MatchStmt> { rest: acc, value: MatchStmt { value: value.value, case_blocks: cases, default_block: default } };
 }
 
 f parse_case_block(input: S) -> Parse<CaseBlock> {
     v acc = input;
-    dbg_print("> case_block");
+    parser_dbg_print("> case_block");
 
     l ident = parse_ident(acc);
     acc = ident.rest;
@@ -363,7 +356,7 @@ f parse_case_block(input: S) -> Parse<CaseBlock> {
     l block = parse_block(acc);
     acc = block.rest;
     
-    dbg_print("< case_block");
+    parser_dbg_print("< case_block");
     r Parse<CaseBlock> {
         rest: acc,
         value: CaseBlock {
@@ -375,7 +368,7 @@ f parse_case_block(input: S) -> Parse<CaseBlock> {
 
 f parse_var_decl(input: S) -> Parse<VarDecl> {
     v acc = input;
-    dbg_print("> var_decl");
+    parser_dbg_print("> var_decl");
 
     v mutable = n;
     v result = next_token(acc);
@@ -396,35 +389,35 @@ f parse_var_decl(input: S) -> Parse<VarDecl> {
     
     acc = next_token(acc).rest; // Semicolon
     
-    dbg_print("< var_decl");
+    parser_dbg_print("< var_decl");
     r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: O_none<Type>(), value: O_some<Expr>(expr.value) } };
 }
 
 f parse_expr(input: S) -> Parse<Expr> {
     v acc = input;
-    dbg_print("> expr");
+    parser_dbg_print("> expr");
 
     v result = next_token(acc);
     acc = result.rest;
     m (result.value) {
         Token::Int(int) => {
-            dbg_print("< expr");
+            parser_dbg_print("< expr");
             r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Int(int)) };
         }
         Token::String(string) => {
-            dbg_print("< expr");
+            parser_dbg_print("< expr");
             r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::String(string)) };
         }
         Token::Char(char) => {
-            dbg_print("< expr");
+            parser_dbg_print("< expr");
             r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Char(char)) };
         }
         Token::Id(ident) => {
             i (S_eq(ident, "y")) {
-                dbg_print("< expr");
+                parser_dbg_print("< expr");
                 r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Bool(y)) };
             } e i (S_eq(ident, "n")) {
-                dbg_print("< expr");
+                parser_dbg_print("< expr");
                 r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Bool(n)) };
             }
 
@@ -473,6 +466,33 @@ f parse_expr(input: S) -> Parse<Expr> {
                         arguments: args.value
                     });
                 }
+                Token::DoubleColon => {
+                    acc = result.rest;
+
+                    l case = parse_ident(acc);
+                    acc = case.rest;
+
+                    v value = O_none<Expr>();
+                    result = next_token(acc);
+                    m (result.value) {
+                        Token::OpenPar => {
+                            acc = result.rest;
+
+                            l ex = parse_expr(acc);
+                            acc = ex.rest;
+
+                            value = O_some<Expr>(ex.value);
+
+                            acc = next_token(acc).rest; // ClosePar
+                        }
+                    }
+
+                    expr = Expr::EnumInit(EnumInitExpr {
+                        ident: ident,
+                        case: case.value,
+                        value: value
+                    });
+                }
             }
 
             result = next_token(acc);
@@ -512,7 +532,7 @@ f parse_expr(input: S) -> Parse<Expr> {
                 b;
             }
 
-            dbg_print("< expr");
+            parser_dbg_print("< expr");
             r Parse<Expr> { rest: acc, value: expr };
         }
     }
@@ -520,7 +540,7 @@ f parse_expr(input: S) -> Parse<Expr> {
 
 f parse_param_list(input: S) -> Parse<V<Parameter>> {
     v acc = input;
-	dbg_print("> param_list");
+	parser_dbg_print("> param_list");
 
     v result = next_token(acc);
     // Deliberately elided: acc = result.rest;
@@ -543,13 +563,13 @@ f parse_param_list(input: S) -> Parse<V<Parameter>> {
         V_push<Parameter>(&fields, field.value);
     }
 
-	dbg_print("< param_list");
+	parser_dbg_print("< param_list");
     r Parse<V<Parameter>> { rest: acc, value: fields };
 }
 
 f parse_arg_list(input: S) -> Parse<V<ArgumentValue>> {
     v acc = input;
-	dbg_print("> arg_list");
+	parser_dbg_print("> arg_list");
 
     v result = next_token(acc);
     // Deliberately elided: acc = result.rest;
@@ -583,13 +603,13 @@ f parse_arg_list(input: S) -> Parse<V<ArgumentValue>> {
         mutable = n;
     }
 
-	dbg_print("< arg_list");
+	parser_dbg_print("< arg_list");
     r Parse<V<ArgumentValue>> { rest: acc, value: fields };
 }
 
 f parse_param(input: S) -> Parse<Parameter> {
     v acc = input;
-	dbg_print("> param");
+	parser_dbg_print("> param");
 
     v ident = parse_ident(acc);
     acc = ident.rest;
@@ -608,7 +628,7 @@ f parse_param(input: S) -> Parse<Parameter> {
     v type = parse_type(acc);
     acc = type.rest;
 
-	dbg_print("< param");
+	parser_dbg_print("< param");
     r Parse<Parameter> {
         rest: acc,
         value: Parameter { label: ident.value, ty: ArgumentType { ty: type.value, mutable: mutable } }
@@ -617,7 +637,7 @@ f parse_param(input: S) -> Parse<Parameter> {
 
 f parse_struct_args(input: S) -> Parse<V<StructInitArgument>> {
     v acc = input;
-	dbg_print("> struct_args");
+	parser_dbg_print("> struct_args");
 
     v result = next_token(acc);
     // Deliberately elided: acc = result.rest;
@@ -640,13 +660,13 @@ f parse_struct_args(input: S) -> Parse<V<StructInitArgument>> {
         V_push<StructInitArgument>(&fields, field.value);
     }
 
-	dbg_print("< struct_args");
+	parser_dbg_print("< struct_args");
     r Parse<V<StructInitArgument>> { rest: acc, value: fields };
 }
 
 f parse_struct_field(input: S) -> Parse<StructInitArgument> {
     v acc = input;
-	dbg_print("> struct_field");
+	parser_dbg_print("> struct_field");
 
     v ident = parse_ident(acc);
     acc = ident.rest;
@@ -656,7 +676,7 @@ f parse_struct_field(input: S) -> Parse<StructInitArgument> {
     v expr = parse_expr(acc);
     acc = expr.rest;
 
-	dbg_print("< struct_field");
+	parser_dbg_print("< struct_field");
     r Parse<StructInitArgument> { rest: acc, value: StructInitArgument { label: ident.value, value: expr.value } };
 }
 
@@ -678,7 +698,7 @@ f expr_to_place(expr: Expr) -> PlaceExpr {
 
 f parse_struct(input: S) -> Parse<Struct> {
     v acc = input;
-	dbg_print("> struct");
+	parser_dbg_print("> struct");
     
     v result = next_token(acc);
     acc = result.rest;
@@ -713,7 +733,7 @@ f parse_struct(input: S) -> Parse<Struct> {
     acc = result.rest;
     // CloseBrace
 
-	dbg_print("< struct");
+	parser_dbg_print("< struct");
     r Parse<Struct> {
 		rest: acc,
 		value: Struct { ident: ident.value, generic_parameters: params, fields: fields.value }
@@ -722,7 +742,7 @@ f parse_struct(input: S) -> Parse<Struct> {
 
 f parse_field_list(input: S) -> Parse<V<Field>> {
     v acc = input;
-	dbg_print("> field_list");
+	parser_dbg_print("> field_list");
 
     v result = next_token(acc);
     // Deliberately elided: acc = result.rest;
@@ -745,13 +765,13 @@ f parse_field_list(input: S) -> Parse<V<Field>> {
         V_push<Field>(&fields, field.value);
     }
 
-	dbg_print("< field_list");
+	parser_dbg_print("< field_list");
     r Parse<V<Field>> { rest: acc, value: fields };
 }
 
 f parse_field(input: S) -> Parse<Field> {
     v acc = input;
-	dbg_print("> field");
+	parser_dbg_print("> field");
 
     v ident = parse_ident(acc);
     acc = ident.rest;
@@ -761,13 +781,13 @@ f parse_field(input: S) -> Parse<Field> {
     v type = parse_type(acc);
     acc = type.rest;
 
-	dbg_print("< field");
+	parser_dbg_print("< field");
     r Parse<Field> { rest: acc, value: Field { ident: ident.value, ty: type.value } };
 }
 
 f parse_enum(input: S) -> Parse<Enum> {
     v acc = input;
-	dbg_print("> enum");
+	parser_dbg_print("> enum");
     
     v result = next_token(acc);
     acc = result.rest;
@@ -787,13 +807,13 @@ f parse_enum(input: S) -> Parse<Enum> {
     acc = result.rest;
     // CloseBrace
 
-	dbg_print("< enum");
+	parser_dbg_print("< enum");
     r Parse<Enum> { rest: acc, value: Enum { ident: ident.value, cases: cases.value } };
 }
 
 f parse_case_list(input: S) -> Parse<V<Case>> {
     v acc = input;
-	dbg_print("> case_list");
+	parser_dbg_print("> case_list");
 
     v result = next_token(acc);
     // Deliberately elided: acc = result.rest;
@@ -815,13 +835,13 @@ f parse_case_list(input: S) -> Parse<V<Case>> {
         V_push<Case>(&cases, case.value);
     }
 
-	dbg_print("< case_list");
+	parser_dbg_print("< case_list");
     r Parse<V<Case>> { rest: acc, value: cases };
 }
 
 f parse_case(input: S) -> Parse<Case> {
     v acc = input;
-	dbg_print("> case");
+	parser_dbg_print("> case");
 
     v ident = parse_ident(acc);
     acc = ident.rest;
@@ -840,7 +860,7 @@ f parse_case(input: S) -> Parse<Case> {
         }
     }
 
-	dbg_print("< case");
+	parser_dbg_print("< case");
     r Parse<Case> { rest: acc, value: Case { ident: ident.value, ty: type } };
 }
 
@@ -848,7 +868,7 @@ f parse_case(input: S) -> Parse<Case> {
 
 f parse_type(input: S) -> Parse<Type> {
     v acc = input;
-	dbg_print("> type");
+	parser_dbg_print("> type");
 	
     v ident = parse_ident(input);
     acc = ident.rest;
@@ -868,13 +888,13 @@ f parse_type(input: S) -> Parse<Type> {
 		}
 	}
 
-	dbg_print("< type");
+	parser_dbg_print("< type");
 	r Parse<Type> { rest: acc, value: Type { ident: ident.value, generic_parameters: generic_params } };
 }
 
 f parse_generic_args(input: S) -> Parse<V<Type>> {
     v acc = input;
-	dbg_print("> generic_args");
+	parser_dbg_print("> generic_args");
 
     v types = V_new<Type>();
 	
@@ -895,13 +915,13 @@ f parse_generic_args(input: S) -> Parse<V<Type>> {
         b;
     }
 
-	dbg_print("< generic_args");
+	parser_dbg_print("< generic_args");
 	r Parse<V<Type>> { rest: acc, value: types };
 }
 
 f parse_generic_params(input: S) -> Parse<V<S>> {
     v acc = input;
-	dbg_print("> generic_params");
+	parser_dbg_print("> generic_params");
 
     v idents = V_new<S>();
 	
@@ -921,19 +941,19 @@ f parse_generic_params(input: S) -> Parse<V<S>> {
         b;
     }
 
-	dbg_print("< generic_params");
+	parser_dbg_print("< generic_params");
 	r Parse<V<S>> { rest: acc, value: idents };
 }
 
 f parse_ident(input: S) -> Parse<S> {
     v acc = input;
-    dbg_print("> ident");
+    parser_dbg_print("> ident");
 
     v result = next_token(acc);
     acc = result.rest;
     m (result.value) {
         Token::Id(ident) => {
-            dbg_print("< ident");
+            parser_dbg_print("< ident");
             r Parse<S> { rest: acc, value: ident };
         }
     }

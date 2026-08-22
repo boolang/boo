@@ -10,6 +10,9 @@ f dbg_print(string: S) {
     print(string);
 }
 
+f parser_dbg_print(string: S) {
+}
+
 f S_concat(first: S, second: S) -> S {
     v acc = first;
     v acc2 = second;

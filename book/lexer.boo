@@ -1,109 +1,109 @@
 f print_token(token: Token) {
     m (token) {
         Token::Id(ident) => {
-            dbg_print(S_push(S_concat("Id(", ident), ')'));
+            parser_dbg_print(S_push(S_concat("Id(", ident), ')'));
         }
         Token::Int(int) => {
-            dbg_print(S_push(S_concat("Int(", I_to_string(int)), ')'));
+            parser_dbg_print(S_push(S_concat("Int(", I_to_string(int)), ')'));
         }
         Token::Char(char) => {
-            dbg_print(S_push(S_concat("Char(", S_new_from_char(char)), ')'));
+            parser_dbg_print(S_push(S_concat("Char(", S_new_from_char(char)), ')'));
         }
         Token::String(string) => {
-            dbg_print(S_push(S_concat("String(", string), ')'));
+            parser_dbg_print(S_push(S_concat("String(", string), ')'));
         }
         Token::KBreak => {
-            dbg_print("KBreak");
+            parser_dbg_print("KBreak");
         }
         Token::KContinue => {
-            dbg_print("KContinue");
+            parser_dbg_print("KContinue");
         }
         Token::KElse => {
-            dbg_print("KElse");
+            parser_dbg_print("KElse");
         }
         Token::KFunction => {
-            dbg_print("KFunction");
+            parser_dbg_print("KFunction");
         }
         Token::KIf => {
-            dbg_print("KIf");
+            parser_dbg_print("KIf");
         }
         Token::KLet => {
-            dbg_print("KLet");
+            parser_dbg_print("KLet");
         }
         Token::KMatch => {
-            dbg_print("KMatch");
+            parser_dbg_print("KMatch");
         }
         Token::KReturn => {
-            dbg_print("KReturn");
+            parser_dbg_print("KReturn");
         }
         Token::KStruct => {
-            dbg_print("KStruct");
+            parser_dbg_print("KStruct");
         }
         Token::KType => {
-            dbg_print("KType");
+            parser_dbg_print("KType");
         }
         Token::KVar => {
-            dbg_print("KVar");
+            parser_dbg_print("KVar");
         }
         Token::KWhile => {
-            dbg_print("KWhile");
+            parser_dbg_print("KWhile");
         }
         Token::OpenPar => {
-            dbg_print("OpenPar");
+            parser_dbg_print("OpenPar");
         }
         Token::ClosePar => {
-            dbg_print("ClosePar");
+            parser_dbg_print("ClosePar");
         }
         Token::OpenBracket => {
-            dbg_print("OpenBracket");
+            parser_dbg_print("OpenBracket");
         }
         Token::CloseBracket => {
-            dbg_print("CloseBracket");
+            parser_dbg_print("CloseBracket");
         }
         Token::OpenBrace => {
-            dbg_print("OpenBrace");
+            parser_dbg_print("OpenBrace");
         }
         Token::CloseBrace => {
-            dbg_print("CloseBrace");
+            parser_dbg_print("CloseBrace");
         }
         Token::Colon => {
-            dbg_print("Colon");
+            parser_dbg_print("Colon");
         }
         Token::DoubleColon => {
-            dbg_print("DoubleColon");
+            parser_dbg_print("DoubleColon");
         }
         Token::Semicolon => {
-            dbg_print("Semicolon");
+            parser_dbg_print("Semicolon");
         }
         Token::Arrow => {
-            dbg_print("Arrow");
+            parser_dbg_print("Arrow");
         }
         Token::DoubleArrow => {
-            dbg_print("DoubleArrow");
+            parser_dbg_print("DoubleArrow");
         }
         Token::Comma => {
-            dbg_print("Comma");
+            parser_dbg_print("Comma");
         }
         Token::Dot => {
-            dbg_print("Dot");
+            parser_dbg_print("Dot");
         }
         Token::Equals => {
-            dbg_print("Equals");
+            parser_dbg_print("Equals");
         }
         Token::Bang => {
-            dbg_print("Bang");
+            parser_dbg_print("Bang");
         }
         Token::Less => {
-            dbg_print("Less");
+            parser_dbg_print("Less");
         }
         Token::Greater => {
-            dbg_print("Greater");
+            parser_dbg_print("Greater");
         }
         Token::Ampersand => {
-            dbg_print("Ampersand");
+            parser_dbg_print("Ampersand");
         }
         Token::Eof => {
-            dbg_print("Eof");
+            parser_dbg_print("Eof");
         }
     }
 }
