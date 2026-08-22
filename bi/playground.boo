@@ -57,4 +57,7 @@ f main() {
     print(box.value);
     Box_set<S>(&box, "new_value");
     print(box.value);
+
+    v number: I;
+    number = 1;
 }

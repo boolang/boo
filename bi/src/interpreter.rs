@@ -281,9 +281,12 @@ impl Context {
         Err(anyhow!("No such variable '{}' in current context", ident))
     }
 
-    fn get_variable_mut(&self, ident: &str) -> Result<Arc<Mutex<Value>>> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(variable) = scope.variables.get(ident) {
+    // This should only be used to fetch an assignment destination. If the variable
+    // is uninitialized it will silently initialize it to a dummy value. This fixes #2 but
+    // is janky (would take too much time to fix things).
+    fn get_variable_mut(&mut self, ident: &str) -> Result<&mut Variable> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(variable) = scope.variables.get_mut(ident) {
                 if !variable.mutable {
                     return Err(anyhow!(
                         "Attempted to mutate immutable variable '{}'",
@@ -291,15 +294,7 @@ impl Context {
                     ));
                 }
 
-                match &variable.value {
-                    Some(value) => return Ok(value.clone()),
-                    None => {
-                        return Err(anyhow!(
-                            "Attempted to get mutable reference to uninitialized variable '{}' (likely through a member access)",
-                            ident
-                        ));
-                    }
-                }
+                return Ok(variable);
             }
         }
         Err(anyhow!("No such variable '{}' in current context", ident))
@@ -802,17 +797,15 @@ impl Interpreter {
             }
             Stmt::Assignment(assignment) => {
                 let value = self.eval_expr(&assignment.value)?;
-                let target = self.resolve_lexpr(&assignment.place)?;
-                let location = target.lock().map_err(|_| anyhow!("Poisoned lock"))?;
-                if location.infer_type() != value.infer_type() {
+                let (target_type, target) = self.resolve_lexpr(&assignment.place, false)?;
+                if !target_type.is_equiv(&value.infer_type()) {
                     return Err(anyhow!(
                         "Attempted to assign value of type {} to {} (which has type {})",
                         value.infer_type(),
                         assignment.place,
-                        location.infer_type()
+                        target_type
                     ));
                 }
-                drop(location);
                 *(target.lock().map_err(|_| anyhow!("Poisoned lock"))?) = value;
             }
             Stmt::If(if_stmt) => {
@@ -921,17 +914,51 @@ impl Interpreter {
         Ok(None)
     }
 
-    fn resolve_lexpr(&mut self, lexpr: &PlaceExpr) -> Result<Arc<Mutex<Value>>> {
+    fn resolve_lexpr(
+        &mut self,
+        lexpr: &PlaceExpr,
+        require_init: bool,
+    ) -> Result<(Type, Arc<Mutex<Value>>)> {
+        self.resolve_lexpr_impl(lexpr, require_init, false)
+    }
+
+    fn resolve_lexpr_impl(
+        &mut self,
+        lexpr: &PlaceExpr,
+        require_init: bool,
+        is_nested: bool,
+    ) -> Result<(Type, Arc<Mutex<Value>>)> {
         match lexpr {
-            PlaceExpr::Ident(ident) => self.context.get_variable_mut(&ident.value),
+            PlaceExpr::Ident(ident) => {
+                let variable = self.context.get_variable_mut(&ident.value)?;
+                match &variable.value {
+                    Some(storage) => Ok((variable.ty.clone(), storage.clone())),
+                    None => {
+                        if is_nested {
+                            return Err(anyhow!(
+                                "Attempted to assign to member of uninitialized variable '{}'",
+                                ident.value
+                            ));
+                        } else if require_init {
+                            return Err(anyhow!(
+                                "Attempted to take mutable reference to unitialized variable '{}'",
+                                ident.value
+                            ));
+                        }
+                        let storage = Arc::new(Mutex::new(Value::Unit));
+                        variable.value = Some(storage.clone());
+                        Ok((variable.ty.clone(), storage.clone()))
+                    }
+                }
+            }
             PlaceExpr::Member(member) => {
-                let base = self.resolve_lexpr(&member.base)?;
+                let (_, base) = self.resolve_lexpr_impl(&member.base, require_init, true)?;
                 let base_struct = base
                     .lock()
                     .map_err(|_| anyhow!("Poisoned lock"))?
                     .as_struct()?;
                 let ty = base_struct.ty();
-                base_struct
+                let value = base_struct
                     .value
                     .get(&member.member.value)
                     .ok_or(anyhow!(
@@ -940,7 +967,12 @@ impl Interpreter {
                         member.member.value,
                         member.member.span
                     ))
-                    .cloned()
+                    .cloned()?;
+                let member_ty = value
+                    .lock()
+                    .map_err(|_| anyhow!("Poisoned lock"))?
+                    .infer_type();
+                Ok((member_ty, value))
             }
         }
     }
@@ -960,7 +992,7 @@ impl Interpreter {
                 Ok(ArgumentValue::Immutable(self.eval_expr(expr)?))
             }
             ArgumentValueExpr::Mutable(expr) => {
-                Ok(ArgumentValue::Mutable(self.resolve_lexpr(expr)?))
+                Ok(ArgumentValue::Mutable(self.resolve_lexpr(expr, true)?.1))
             }
         }
     }
