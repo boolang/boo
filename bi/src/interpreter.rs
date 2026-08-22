@@ -700,6 +700,37 @@ impl Interpreter {
                 }
             },
         );
+
+        self.register_generic_builtin(
+            "V_set",
+            vec!["T"],
+            vec![
+                ("vec", vec_t.clone(), true),
+                ("idx", int.clone(), false),
+                ("new_value", t.clone(), false),
+            ],
+            unit.clone(),
+            |_, arguments| {
+                let vector = arguments[0].value().as_vector()?;
+                let idx = arguments[1].value().as_int()?;
+                let value = arguments[2].value();
+                if idx < 0 || idx as usize >= vector.vector.len() {
+                    Err(anyhow!(
+                        "V_get, attempted to access element at index {} in vector of length {}",
+                        idx,
+                        vector.vector.len()
+                    ))
+                } else {
+                    arguments[0]
+                        .get_mut()?
+                        .lock()
+                        .map_err(|_| anyhow!("Poisoned lock"))?
+                        .as_vector_mut()?
+                        .vector[idx as usize] = value;
+                    Ok(Value::Unit)
+                }
+            },
+        );
     }
 
     pub fn register_builtin<F: Fn(Vec<Type>, Vec<ArgumentValue>) -> Result<Value> + 'static>(
@@ -1213,11 +1244,12 @@ impl Interpreter {
                     .iter()
                     .map(|argument| self.eval_arg_value(argument))
                     .collect();
-                self.eval_fn(
-                    &call.ident.value,
-                    call.generic_parameters.clone(),
-                    arguments?,
-                )
+                let generics = call
+                    .generic_parameters
+                    .iter()
+                    .map(|param| self.eval_ty(param))
+                    .collect::<Result<Vec<_>>>()?;
+                self.eval_fn(&call.ident.value, generics, arguments?)
             }
             Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
             Expr::EnumInit(enum_init) => self.eval_enum_init(enum_init),

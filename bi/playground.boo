@@ -29,6 +29,12 @@ f Box_set<T>(box: &Box<T>, value: T) {
     box.value = value;
 }
 
+f Err<T>(value: T) -> Box<T> {
+    v box = Box<T> { value: value };
+    Box_set<T>(&box, value);
+    r box;
+}
+
 f main() {
     v person = Person { name: "stackotter", age: 1 };
     print(person.name);
@@ -65,4 +71,6 @@ f main() {
     V_push<S>(&vec, "first");
     V_push<S>(&vec, "second");
     print(V_get<S>(vec, 1));
+
+    Err<S>("Hi");
 }
