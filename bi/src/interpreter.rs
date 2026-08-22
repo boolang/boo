@@ -3,9 +3,9 @@ use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::ast::{
-    ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Decl, Enum, Expr, Function,
-    FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr, SimpleType, Stmt, Struct,
-    StructInitExpr, Type,
+    ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Decl, Enum, EnumInitExpr, Expr,
+    Function, FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr, SimpleType, Stmt,
+    Struct, StructInitExpr, Type,
 };
 use anyhow::{Result, anyhow};
 
@@ -22,6 +22,19 @@ impl StructValue {
 }
 
 #[derive(Clone, Debug)]
+pub struct EnumValue {
+    pub decl: Enum,
+    pub case: usize,
+    pub value: Option<Value>,
+}
+
+impl EnumValue {
+    fn ty(&self) -> Type {
+        simple_type(&self.decl.ident.value)
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Value {
     Int(i128),
     Bool(bool),
@@ -29,6 +42,7 @@ pub enum Value {
     Character(char),
     Unit,
     Struct(StructValue),
+    Enum(Box<EnumValue>),
 }
 
 #[derive(Clone, Debug)]
@@ -88,6 +102,7 @@ impl Value {
             Value::Character(_) => simple_type("C"),
             Value::Unit => simple_type("U"),
             Value::Struct(value) => value.ty(),
+            Value::Enum(value) => value.ty(),
         }
     }
 
@@ -695,7 +710,7 @@ impl Interpreter {
                 self.eval_fn(&call.ident.value, arguments?)
             }
             Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
-            Expr::EnumInit(_) => todo!("Enum init not implementd in interpreter"),
+            Expr::EnumInit(enum_init) => self.eval_enum_init(enum_init),
             Expr::MemberAccess(member_access) => {
                 let base_value = self.eval_expr(&member_access.base)?;
                 let struct_value = base_value.as_struct()?;
@@ -781,6 +796,50 @@ impl Interpreter {
             decl: struct_decl.clone(),
             value: values,
         }))
+    }
+
+    fn eval_enum_init(&mut self, enum_init: &EnumInitExpr) -> Result<Value> {
+        let enum_decl = self
+            .enums
+            .iter()
+            .find(|decl| decl.ident.value == enum_init.ident.value)
+            .ok_or(anyhow!(
+                "No such enum '{}' (referenced from enum init expr at {:?})",
+                enum_init.ident.value,
+                enum_init.ident.span
+            ))?
+            .clone();
+
+        let (case_index, case) = enum_decl
+            .cases
+            .iter()
+            .enumerate()
+            .find(|x| x.1.ident.value == enum_init.case.value)
+            .ok_or(anyhow!(
+                "Enum '{}' has no case '{}'",
+                enum_decl.ident.value,
+                enum_init.case.value
+            ))?;
+
+        if case.ty.is_some() != enum_init.value.is_some() {
+            return Err(anyhow!(
+                "Case '{}' of enum '{}' expected a value and wasn't given one, or vice versa",
+                case.ident.value,
+                enum_decl.ident.value
+            ));
+        }
+
+        let value = enum_init
+            .value
+            .clone()
+            .map(|expr| self.eval_expr(&expr))
+            .transpose()?;
+
+        Ok(Value::Enum(Box::new(EnumValue {
+            decl: enum_decl,
+            case: case_index,
+            value,
+        })))
     }
 
     fn eval_literal(&mut self, literal: &LiteralExpr) -> Value {

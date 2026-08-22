@@ -3,6 +3,11 @@ s Person {
     age: I,
 }
 
+t Token {
+    Comma,
+    Integer(I),
+}
+
 f mk_name() -> S {
     l value = "bpaul";
     r value;
@@ -21,4 +26,7 @@ f main() {
     v name = "";
     S_replace(&name, "max");
     print(name);
+
+    l token1 = Token::Comma;
+    l token2 = Token::Integer(1);
 }
