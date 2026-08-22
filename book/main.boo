@@ -15,6 +15,8 @@ f main() {
     print(I_to_string(lex_number("0x1234 ").value));
     print(I_to_string(lex_number("-0x1234 ").value));
     print(I_to_string(lex_number("+0b10110 ").value));
+
+    print(lex_string("\"hel\\n\\\"lo\"").value);
 }
 
 s TokenParse {
@@ -117,6 +119,9 @@ f next_token(input: S) -> TokenParse {
     } e i (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(C_eq(acc[0], '-'), C_eq(acc[0], '+')))) {
         l result = lex_number(acc);
         r TokenParse { remainder: result.remainder, value: Token::Int(result.value) };
+    } e i (C_eq(acc[0], '"')) {
+        l result = lex_string(acc);
+        r TokenParse { remainder: result.remainder, value: Token::String(result.value) };
     } e i (and(C_eq(acc[0], '-'), C_eq(acc[1], '>'))) {
         r TokenParse { remainder: S_advance(acc, 2), value: Token::Arrow };
     } e i (and(C_eq(acc[0], '='), C_eq(acc[1], '>'))) {
@@ -247,4 +252,29 @@ f parse_dec(input: S) -> NumberParse {
     }
 
     r NumberParse { remainder: acc, value: num };
+}
+
+f lex_string(input: S) -> StringParse {
+    v acc = S_advance(input, 1);
+    v string = "";
+
+    w (not(C_eq(acc[0], '"'))) {
+        i (C_eq(acc[0], '\\')) {
+            i (C_eq(acc[1], 'n')) {
+                string = S_push(string, '\n');
+            } e i (C_eq(acc[1], 't')) {
+                string = S_push(string, '\t');
+            } e i (C_eq(acc[1], 'r')) {
+                string = S_push(string, '\r');
+            } e {
+                string = S_push(string, acc[1]);
+            }
+            acc = S_advance(acc, 2);
+        } e {
+            string = S_push(string, acc[0]);
+            acc = S_advance(acc, 1);
+        }
+    }
+
+    r StringParse { remainder: acc, value: string };
 }
