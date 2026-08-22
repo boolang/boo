@@ -41,11 +41,12 @@ export default grammar({
       '{',
       $.struct_term,
       repeat(seq(',', $.struct_term)),
+      optional(','),
       '}',
     ),
 
     struct_term: $ => seq(
-      $.identifier, ':', $.type, ','
+      $.identifier, ':', $.type
     ),
 
     enum_def: $ => seq(
@@ -139,6 +140,11 @@ export default grammar({
       $.binary_expr,
       $.call,
       $.identifier,
+      seq('(', $.expression, ')'),
+      $.member_access,
+      $.subscript,
+      $.struct_init,
+      $.turbo,
     ),
 
     literal: $ => choice(
@@ -148,36 +154,49 @@ export default grammar({
     ),
 
     unary_expr: $ => choice(
-      prec(0, seq("-", $.expression)),
-      prec(0, seq("*", $.expression)),
-      prec(0, seq("&", $.expression)),
-      prec(0, seq("!", $.expression)),
-      prec(0, seq("~", $.expression)),
+      prec(2, seq("-", $.expression)),
+      prec(2, seq("*", $.expression)),
+      prec(2, seq("&", $.expression)),
+      prec(2, seq("!", $.expression)),
+      prec(2, seq("~", $.expression)),
     ),
 
     binary_expr: $ => choice(
-      prec.left(1, seq($.expression, "||", $.expression)),
-      prec.left(2, seq($.expression, "&&", $.expression)),
-      prec.left(3, seq($.expression, "==", $.expression)),
-      prec.left(3, seq($.expression, "!=", $.expression)),
-      prec.left(4, seq($.expression, "|", $.expression)),
-      prec.left(5, seq($.expression, "^", $.expression)),
-      prec.left(6, seq($.expression, "&", $.expression)),
-      prec.left(7, seq($.expression, ">>", $.expression)),
-      prec.left(7, seq($.expression, "<<", $.expression)),
-      prec.left(8, seq($.expression, "+", $.expression)),
-      prec.left(8, seq($.expression, "-", $.expression)),
-      prec.left(9, seq($.expression, "*", $.expression)),
-      prec.left(9, seq($.expression, "/", $.expression)),
-      prec.left(9, seq($.expression, "%", $.expression)),
+      prec.left(3, seq($.expression, "||", $.expression)),
+      prec.left(4, seq($.expression, "&&", $.expression)),
+      prec.left(5, seq($.expression, "==", $.expression)),
+      prec.left(5, seq($.expression, "!=", $.expression)),
+      prec.left(6, seq($.expression, "|", $.expression)),
+      prec.left(7, seq($.expression, "^", $.expression)),
+      prec.left(8, seq($.expression, "&", $.expression)),
+      prec.left(9, seq($.expression, ">>", $.expression)),
+      prec.left(9, seq($.expression, "<<", $.expression)),
+      prec.left(10, seq($.expression, "+", $.expression)),
+      prec.left(10, seq($.expression, "-", $.expression)),
+      prec.left(20, seq($.expression, "*", $.expression)),
+      prec.left(20, seq($.expression, "/", $.expression)),
+      prec.left(20, seq($.expression, "%", $.expression)),
     ),
 
     call: $ => seq(
       $.identifier,
+      optional($.generics),
       '(',
       $.expression, repeat(seq(',', $.expression)),
       ')',
     ),
+
+    member_access: $ => prec.left(0, seq($.expression, '.', $.identifier)),
+
+    subscript: $ => prec.left(1, seq($.expression, '[', $.expression , ']')),
+
+    struct_init: $ => seq($.type, '{',
+      $.struct_init_arg, repeat(seq(',', $.struct_init_arg)), optional(','),
+    '}'),
+
+    struct_init_arg: $ => seq($.identifier, ':', $.expression),
+
+    turbo: $ => seq($.type, '::', $.identifier),
 
     pattern: $ => choice(
       $.identifier,

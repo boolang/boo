@@ -12,7 +12,7 @@ f c_to_s(char: C) -> S {
     // specifying generics (otherwise we have to write a whole inference thing).
     l chars = V_new<C>();
     V_append<C>(&chars, char);
-    return S_new_with_chars(chars);
+    r S_new_with_chars(chars);
 }
 
 t Kind {
@@ -28,18 +28,18 @@ s Token {
 }
 
 f Kind_description(kind: Kind) -> S {
-    m kind {
+    m (kind) {
         Ident => {
-            return "ident";
+            r "ident";
         }
         Comment => {
-            return "comment";
+            r "comment";
         }
         LParen => {
-            return "left_paren";
+            r "left_paren";
         }
         RParen => {
-            return "right_paren";
+            r "right_paren";
         }
     }
 }

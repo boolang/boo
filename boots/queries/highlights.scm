@@ -1,8 +1,8 @@
 [ "b" "c" "e" "f" "i" "l" "m" "r" "s" "t" "v" "w" ] @keyword
 
 [ "=" "->" "=>" ] @punctuation
-[ "(" ")" "{" "}" "<" ">" ] @punctuation.bracket
-[ "," ";" ":" ] @punctuation.delimiter
+[ "(" ")" "{" "}" "<" ">" "[" "]" ] @punctuation.bracket
+[ "," ";" ":" "::" ] @punctuation.delimiter
 
 [ "-" "+" "*" "/" "%" "&" "|" ">>" "<<" "&&" "||" "==" "!=" "!" "~" ] @operator
 
@@ -11,7 +11,6 @@
 (struct_term (identifier) @variable)
 (enum_def (identifier) @type)
 (enum_term (identifier) @constructor)
-(type (identifier) @type)
 (assign_statement (binding) @variable)
 (var_decl_statement (binding) @variable)
 (typed_var (binding) @variable)
@@ -19,5 +18,10 @@
 (pattern (binding) @variable)
 (call (identifier) @function.call)
 (expression (identifier) @variable)
+(member_access (identifier) @variable)
+(struct_init_arg (identifier) @variable)
+(turbo (identifier) @constructor)
+(type (identifier) @type)
 (string) @string
 (number) @number
+(comment) @comment
