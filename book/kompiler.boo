@@ -7,7 +7,9 @@ s Ctx {
     structs: Map<Struct>,
     enums: Map<Enum>,
     fns: Map<Function>,
-    builtin_fns: Map<BuiltinFunction>
+    builtin_fns: Map<BuiltinFunction>,
+    constants: V<Constant>,
+    wr: AsmWriter
 }
 
 f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
@@ -24,7 +26,14 @@ f kompile(ast: Ast) {
         structs: Map_new<Struct>(),
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
-        builtin_fns: Map_new<BuiltinFunction>()
+        builtin_fns: Map_new<BuiltinFunction>(),
+        constants: V_new<Constant>(),
+        wr: AsmWriter {
+            buf: "",
+            jumps: Map_new<I>(),
+            pending_jumps: Map_new<V<I>>(),
+            locals: V_new<Local>()
+        }
     };
 
     v exit_params = V_new<Parameter>();
@@ -66,24 +75,24 @@ f kompile(ast: Ast) {
 
     l main_fn = Map_get<Function>(ctx.fns, "main");
     i (O_is_some<Function>(main_fn)) {
-        kompile_fn(ctx, O_get<Function>(main_fn));
+        kompile_fn(&ctx, O_get<Function>(main_fn));
     }
 }
 
-f kompile_fn(ctx: Ctx, fn: Function) {
+f kompile_fn(ctx: &Ctx, fn: Function) {
     v idx = 0;
     w (I_lt(idx, V_len<Stmt>(fn.stmts))) {
         l stmt = V_get<Stmt>(fn.stmts, idx);
         print("Kompiling stmt");
-        kompile_stmt(ctx, stmt);
+        kompile_stmt(&ctx, stmt);
         idx = I_add(idx, 1);
     }
 }
 
-f kompile_stmt(ctx: Ctx, stmt: Stmt) {
+f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
     m (stmt) {
         Stmt::Expr(expr) => {
-            kompile_expr(ctx, expr);
+            kompile_expr(&ctx, expr);
         }
         _ => {
             print("Unsupported stmt type");
@@ -91,10 +100,10 @@ f kompile_stmt(ctx: Ctx, stmt: Stmt) {
     }
 }
 
-f kompile_expr(ctx: Ctx, expr: Expr) {
+f kompile_expr(ctx: &Ctx, expr: Expr) {
     m (expr) {
         Expr::FunctionCall(call) => {
-            kompile_fn_call(ctx, call);
+            kompile_fn_call(&ctx, call);
         }
         _ => {
             print("Unsupported expr type");
@@ -106,16 +115,78 @@ f exit() {
     nonexistent();
 }
 
-f kompile_fn_call(ctx: Ctx, call: FunctionCallExpr) {
+f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
     l maybe_fn = Map_get<Function>(ctx.fns, call.ident);
-    // l fn: Function;
     i (O_is_none<Function>(maybe_fn)) {
-        print("No such function");
-        print(call.ident);
+        kompile_builtin_fn_call(&ctx, call);
+    } e {
+        l fn = O_get<Function>(maybe_fn);
+        print("Function has this many arguments");
+        print(I_to_string(V_len<Parameter>(fn.parameters)));
+    }
+}
+
+f resolve_type(ctx: Ctx, type: Type) -> Type {
+    r type;
+}
+
+f resolve_types(ctx: Ctx, types: V<Type>) -> V<Type> {
+    v resolved = V_new<Type>();
+    l len = V_len<Type>(types);
+    v idx = 0;
+    w (I_lt(idx, len)) {
+        l type = V_get<Type>(types, idx);
+        V_push<Type>(resolved, resolve_type(ctx, type));
+    }
+    r resolved;
+}
+
+f V_Type_eq(self: V<Type>, other: V<Type>) -> B {
+    l len = V_len<Type>(self);
+    i (not(I_eq(len, V_len<Type>(other)))) {
+        r n;
+    }
+
+    v idx = 0;
+    w (I_lt(idx, len)) {
+        l type1 = V_get<Type>(self, idx);
+        l type2 = V_get<Type>(other, idx);
+        i (not(Type_eq(type1, type2))) {
+            r n;
+        }
+        idx = I_add(idx, 1);
+    }
+
+    r y;
+}
+
+f Type_eq(self: Type, other: Type) -> B {
+    r and(
+        S_eq(self.ident, other.ident),
+        V_Type_eq(self.generic_parameters, other.generic_parameters)
+    );
+}
+
+f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
+    l maybe_fn = Map_get<BuiltinFunction>(ctx.builtin_fns, call.ident);
+    i (O_is_none<BuiltinFunction>(maybe_fn)) {
+        print(S_concat("Function does not exist with name: ", call.ident));
         exit();
     } e {
-        fn = O_get<Function>(maybe_fn);
+        l fn = O_get<BuiltinFunction>(maybe_fn);
+        print("Function has this many arguments");
+        print(I_to_string(V_len<Parameter>(fn.params)));
+
+        l nparams = V_len<Parameter>(fn.params);
+        l nargs = V_len<ArgumentValue>(call.arguments);
+        i (not(I_eq(nparams, nargs))) {
+            print("Error in function:");
+            print(call.ident);
+            print("Invalid number of function params, expected:");
+            print(I_to_string(nparams));
+            print("But got");
+            print(I_to_string(nargs));
+            exit();
+        }
     }
-    print("Function has this many arguments");
-    print(I_to_string(V_len<Parameter>(fn.parameters)));
 }
