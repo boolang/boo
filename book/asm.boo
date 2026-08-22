@@ -58,6 +58,11 @@ f AW_finalize_function(wr: &AsmWriter) {
 
 f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
     // Add to locals and return the local index
+    r -1;
+}
+
+f AW_mov_constant_int_to_local(wr: &AsmWriter, dst_idx: I, dst_offset: I, value: I) {
+    // Write a constant value to an offset within a stack variable
 }
 
 f AW_mov_local_to_local(wr: &AsmWriter, dst_idx: I, src_idx: I) {
@@ -81,10 +86,6 @@ f AW_mov_stack(wr: &AsmWriter, dst_offset: I, src_offset: I, sz: I) {
     // Move from src offset within stack frame to dst offset within stack frame
 }
 
-f AW_mov_const(wr: &AsmWriter, reg: Reg, val: I) {
-    // Move a concrete imm64 to the reg
-}
-
 f AW_create_constant(wr: &AsmWriter, data: S) -> I {
     // Create constant and return index that people can use to call AW_load_constant
     // Could emit relative jmp with length of data and then emit data and store the
@@ -96,20 +97,8 @@ f AW_load_constant(wr: &AsmWriter, reg: Reg, constant_idx: I) {
     // the location of the first byte to constant_loads
 }
 
-f AW_store_reg_to_local(wr: &AsmWriter, dst_idx: I, dst_offset: I, reg: Reg) {
-    // Defer to AW_store_reg_to_stack
-}
-
-f AW_store_local_to_reg(wr: &AsmWriter, reg: Reg, src_idx: I, src_offset: I) {
-    // Defer to AW_store_stack_to_reg
-}
-
-f AW_store_reg_to_stack(wr: &AsmWriter, dst_offset: I, reg: Reg) {
-    // Store reg to stack from offset
-}
-
-f AW_store_stack_to_reg(wr: &AsmWriter, reg: Reg, src_offset: I) {
-    // Load reg from stack frame offset
+f AW_push_argument_ptr(wr: &AsmWriter, local_idx: I) {
+    // Push address to local onto stack as a function argument
 }
 
 f AW_expand_stack(wr: &AsmWriter, sz: I) {
@@ -118,10 +107,6 @@ f AW_expand_stack(wr: &AsmWriter, sz: I) {
 
 f AW_shrink_stack(wr: &AsmWriter, sz: I) {
     // Instructions to shrink stack
-}
-
-f AW_mov_reg(wr: &AsmWriter, dst: Reg, src: Reg) {
-    // Emit instructions directly
 }
 
 f AW_call(wr: &AsmWriter, symbol: S) {
