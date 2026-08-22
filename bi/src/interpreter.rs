@@ -401,40 +401,98 @@ impl Interpreter {
     }
 
     pub fn register_stdlib_builtins(&mut self) {
-        self.register_builtin("print", vec![("string", "S")], |arguments| {
+        self.register_builtin("print", vec![("string", "S")], "U", |arguments| {
             println!("{}", arguments[0].as_string()?);
             Ok(Value::Unit)
         });
 
-        self.register_builtin("or", vec![("first", "B"), ("second", "B")], |arguments| {
-            Ok(Value::Bool(
-                arguments[0].as_bool()? || arguments[1].as_bool()?,
-            ))
-        });
-        self.register_builtin("and", vec![("first", "B"), ("second", "B")], |arguments| {
-            Ok(Value::Bool(
-                arguments[0].as_bool()? && arguments[1].as_bool()?,
-            ))
-        });
-        self.register_builtin("not", vec![("first", "B")], |arguments| {
+        self.register_builtin(
+            "or",
+            vec![("first", "B"), ("second", "B")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_bool()? || arguments[1].as_bool()?,
+                ))
+            },
+        );
+        self.register_builtin(
+            "and",
+            vec![("first", "B"), ("second", "B")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_bool()? && arguments[1].as_bool()?,
+                ))
+            },
+        );
+        self.register_builtin("not", vec![("first", "B")], "B", |arguments| {
             Ok(Value::Bool(!arguments[0].as_bool()?))
         });
 
-        self.register_builtin("C_eq", vec![("char", "C"), ("char", "C")], |arguments| {
-            Ok(Value::Bool(
-                arguments[0].as_char()? == arguments[1].as_char()?,
-            ))
-        });
+        self.register_builtin(
+            "C_eq",
+            vec![("char", "C"), ("char", "C")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_char()? == arguments[1].as_char()?,
+                ))
+            },
+        );
+        self.register_builtin(
+            "C_le",
+            vec![("char", "C"), ("char", "C")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_char()? <= arguments[1].as_char()?,
+                ))
+            },
+        );
+        self.register_builtin(
+            "C_ge",
+            vec![("char", "C"), ("char", "C")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_char()? >= arguments[1].as_char()?,
+                ))
+            },
+        );
 
-        self.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
+        self.register_builtin("S_new_from_char", vec![("char", "C")], "S", |arguments| {
             Ok(Value::String(arguments[0].as_char()?.to_string()))
         });
         self.register_builtin(
+            "S_push",
+            vec![("string", "S"), ("char", "C")],
+            "S",
+            |arguments| {
+                Ok(Value::String({
+                    let mut s = arguments[0].as_string()?;
+                    s.push(arguments[1].as_char()?);
+                    s
+                }))
+            },
+        );
+        self.register_builtin(
             "S_advance",
             vec![("string", "S"), ("offset", "I")],
+            "S",
             |arguments| {
                 Ok(Value::String(
                     arguments[0].as_string()?[arguments[1].as_int()? as usize..].to_owned(),
+                ))
+            },
+        );
+        self.register_builtin(
+            "S_eq",
+            vec![("string", "S"), ("string", "S")],
+            "B",
+            |arguments| {
+                Ok(Value::Bool(
+                    arguments[0].as_string()? == arguments[1].as_string()?,
                 ))
             },
         );
@@ -444,6 +502,7 @@ impl Interpreter {
         &mut self,
         ident: &str,
         parameters: Vec<(&'static str, &'static str)>,
+        return_type: &'static str,
         body: F,
     ) {
         self.builtins.insert(
@@ -464,7 +523,10 @@ impl Interpreter {
                             },
                         })
                         .collect(),
-                    ret: None,
+                    ret: Some(Type::Simple(SimpleType {
+                        ident: Ident::new((*return_type).into(), Range { start: 0, end: 0 }),
+                        generic_parameters: vec![],
+                    })),
                 },
                 body: Arc::new(body),
             },
