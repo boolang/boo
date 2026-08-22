@@ -28,20 +28,24 @@ export default grammar({
       $.identifier,
       optional($.generics),
       '(',
-      optional(seq($.typed_var, repeat(seq(',', $.typed_var)))),
+      optional(seq($.fun_def_arg, repeat(seq(',', $.fun_def_arg)))),
       ')',
       optional(seq('->', $.type)),
       $.block,
     ),
+
+    fun_def_arg: $ => choice(seq('&', $.typed_var), $.typed_var),
 
     struct_def: $ => seq(
       's',
       $.identifier,
       optional($.generics),
       '{',
-      $.struct_term,
-      repeat(seq(',', $.struct_term)),
-      optional(','),
+      optional(seq(
+        $.struct_term,
+        repeat(seq(',', $.struct_term)),
+        optional(','),
+      )),
       '}',
     ),
 

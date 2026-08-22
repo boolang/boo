@@ -61,7 +61,7 @@
               "members": [
                 {
                   "type": "SYMBOL",
-                  "name": "typed_var"
+                  "name": "fun_def_arg"
                 },
                 {
                   "type": "REPEAT",
@@ -74,7 +74,7 @@
                       },
                       {
                         "type": "SYMBOL",
-                        "name": "typed_var"
+                        "name": "fun_def_arg"
                       }
                     ]
                   }
@@ -117,6 +117,28 @@
         }
       ]
     },
+    "fun_def_arg": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "&"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "typed_var"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "typed_var"
+        }
+      ]
+    },
     "struct_def": {
       "type": "SEQ",
       "members": [
@@ -145,31 +167,44 @@
           "value": "{"
         },
         {
-          "type": "SYMBOL",
-          "name": "struct_term"
-        },
-        {
-          "type": "REPEAT",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "STRING",
-                "value": ","
-              },
-              {
-                "type": "SYMBOL",
-                "name": "struct_term"
-              }
-            ]
-          }
-        },
-        {
           "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": ","
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "struct_term"
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "STRING",
+                        "value": ","
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "struct_term"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": ","
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
             },
             {
               "type": "BLANK"

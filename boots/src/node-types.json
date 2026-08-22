@@ -240,6 +240,10 @@
           "named": true
         },
         {
+          "type": "fun_def_arg",
+          "named": true
+        },
+        {
           "type": "generics",
           "named": true
         },
@@ -250,7 +254,18 @@
         {
           "type": "type",
           "named": true
-        },
+        }
+      ]
+    }
+  },
+  {
+    "type": "fun_def_arg",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
         {
           "type": "typed_var",
           "named": true
