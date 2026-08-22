@@ -193,6 +193,13 @@ impl Value {
             _ => Err(anyhow!("Expected vector, got {}", self.infer_type())),
         }
     }
+
+    pub fn as_string_mut(&mut self) -> Result<&mut Vec<u8>> {
+        match self {
+            Value::String(value) => Ok(value),
+            _ => Err(anyhow!("Expected vector, got {}", self.infer_type())),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -572,6 +579,10 @@ impl Interpreter {
             ))
         });
 
+        let int = SimpleType::new("I", vec![]);
+        let string = SimpleType::new("S", vec![]);
+        let unit = SimpleType::new("U", vec![]);
+
         self.register_builtin(
             "S_new_from_char",
             vec![("char", "C")],
@@ -612,6 +623,30 @@ impl Interpreter {
                 Ok(Value::Bool(
                     arguments[0].value().as_string()? == arguments[1].value().as_string()?,
                 ))
+            },
+        );
+        self.register_builtin("S_length", vec![("string", "S")], "I", |_, arguments| {
+            Ok(Value::Int((arguments[0].value().as_string()?).len() as i128))
+        });
+        self.register_generic_builtin(
+            "S_set_range",
+            vec![],
+            vec![
+                ("replacer", string.clone(), true),
+                ("offset", int.clone(), false),
+                ("substr", string.clone(), false),
+            ],
+            unit.clone(),
+            |_, arguments| {
+                let mutex = arguments[0].get_mut()?;
+                let mut binding = mutex.lock().map_err(|_| anyhow!("Poisoned lock"))?;
+                let buf = binding.as_string_mut()?;
+                let offset = arguments[1].value().as_int()? as usize;
+                let substr = arguments[2].value().as_string()?;
+                let _: Vec<_> = buf
+                    .splice(offset..(offset + substr.len()), substr.iter().copied())
+                    .collect();
+                Ok(Value::Unit)
             },
         );
 
@@ -693,8 +728,6 @@ impl Interpreter {
 
         let vec_t = SimpleType::new("V", vec![SimpleType::new("T", vec![])]);
         let t = SimpleType::new("T", vec![]);
-        let int = SimpleType::new("I", vec![]);
-        let unit = SimpleType::new("U", vec![]);
         self.register_generic_builtin("V_new", vec!["T"], vec![], vec_t.clone(), |generics, _| {
             Ok(Value::Vector(VectorValue {
                 vector: vec![],

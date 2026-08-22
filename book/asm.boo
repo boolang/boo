@@ -112,4 +112,22 @@ f AW_shrink_stack(wr: &AsmWriter, sz: I) {
 f AW_call(wr: &AsmWriter, symbol: S) {
     // If symbol in jumps, emit concrete call instr
     // Otherwise, emit space for call instr
+    l lookup = Map_get<I>(wr.jumps, symbol);
+    i (Opt_is_some<I>(lookup)) {
+        l addr = V_get<I>(lookup.value, 0);
+        l code = S_concat(S_concat(S_new_from_char(I_chr(0xb8)), I_u32_to_bytes(addr)), I_u16_to_bytes(0xd0ff));
+    } e {
+        l addr = 0xffffffff;
+        l code = S_concat(S_concat(S_new_from_char(I_chr(0xb8)), I_u32_to_bytes(addr)), I_u16_to_bytes(0xd0ff));
+        l offset = I_add(S_length(wr.buf), 1);
+        l cur_pending = Map_get<V<I>>(wr.pending_jumps, symbol);
+        i (Opt_is_some<V<I>>(cur_pending)) {
+            l pending = cur_pending.value[0];
+            Map_insert(wr.pending_jumps, V_push<I>(pending, offset));
+        } e {
+            l pending = V_new<I>();
+            Map_insert(wr.pending_jumps, V_push<I>(pending, offset));
+        }
+    }
+    wr.buf = S_concat(wr.buf, code);
 }
