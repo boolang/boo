@@ -6,7 +6,7 @@ f main() {
     // l src = "hello.boo";
     // l contents = read(src);
     l contents = "// thiaenstrahsieanthiea s tuokwtj
-    -0x1023
+    \"hihihihi\" '\\''
      {}";
     print(next_token(next_token(contents).remainder).remainder);
 
@@ -32,6 +32,11 @@ s StringParse {
 s NumberParse {
     remainder: S,
     value: I,
+}
+
+s CharParse {
+    remainder: S,
+    value: C,
 }
 
 t Token {
@@ -122,6 +127,9 @@ f next_token(input: S) -> TokenParse {
     } e i (C_eq(acc[0], '"')) {
         l result = lex_string(acc);
         r TokenParse { remainder: result.remainder, value: Token::String(result.value) };
+    } e i (C_eq(acc[0], '\'')) {
+        l result = lex_char(acc);
+        r TokenParse { remainder: result.remainder, value: Token::Char(result.value) };
     } e i (and(C_eq(acc[0], '-'), C_eq(acc[1], '>'))) {
         r TokenParse { remainder: S_advance(acc, 2), value: Token::Arrow };
     } e i (and(C_eq(acc[0], '='), C_eq(acc[1], '>'))) {
@@ -159,6 +167,9 @@ f next_token(input: S) -> TokenParse {
     } e i (C_eq(acc[0], '&')) {
         r TokenParse { remainder: S_advance(acc, 1), value: Token::Ampersand };
     }
+
+    print("oops");
+    print(acc);
 }
 
 f lex_ident(input: S) -> StringParse {
@@ -254,6 +265,26 @@ f parse_dec(input: S) -> NumberParse {
     r NumberParse { remainder: acc, value: num };
 }
 
+f lex_char(input: S) -> CharParse {
+    v acc = S_advance(input, 1);
+
+    i (C_eq(acc[0], '\\')) {
+        i (C_eq(acc[1], 'n')) {
+            r CharParse { remainder: S_advance(acc, 3), value: '\n' };
+        } e i (C_eq(acc[1], 't')) {
+            r CharParse { remainder: S_advance(acc, 3), value: '\t' };
+        } e i (C_eq(acc[1], 'r')) {
+            r CharParse { remainder: S_advance(acc, 3), value: '\r' };
+        } e {
+            r CharParse { remainder: S_advance(acc, 3), value: acc[1] };
+        }
+    } e {
+        r CharParse { remainder: S_advance(acc, 2), value: acc[0] };
+    }
+
+    r CharParse { remainder: S_advance(acc, 2), value: string };
+}
+
 f lex_string(input: S) -> StringParse {
     v acc = S_advance(input, 1);
     v string = "";
@@ -276,5 +307,5 @@ f lex_string(input: S) -> StringParse {
         }
     }
 
-    r StringParse { remainder: acc, value: string };
+    r StringParse { remainder: S_advance(acc, 1), value: string };
 }

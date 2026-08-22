@@ -253,7 +253,6 @@ fn chr(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
             '\'',
             dispatch! {any;
                 '\\' => dispatch! {any;
-                    '\'' => empty.value('\"'),
                     'n' => empty.value('\n'),
                     't' => empty.value('\t'),
                     'r' => empty.value('\r'),
