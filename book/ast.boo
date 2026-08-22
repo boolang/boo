@@ -1,8 +1,3 @@
-// t Option<T> {
-// 	Some(T),
-// 	None,
-// }
-
 s Type {
     ident: S,
     generic_parameters: V<Type>,
@@ -38,7 +33,7 @@ s StructInitArgument {
 s EnumInitExpr {
     ident: S,
     case: S,
-    value: Option<Expr>,
+    value: O<Expr>,
 }
 
 s MemberAccessExpr {
@@ -87,13 +82,13 @@ s ElseBlock {
 
 s IfStmt {
     if_blocks: V<IfBlock>,
-    else_block: Option<ElseBlock>,
+    else_block: O<ElseBlock>,
 }
 
 s MatchStmt {
     value: Expr,
     case_blocks: V<CaseBlock>,
-    default_block: Option<V<Stmt>>,
+    default_block: O<V<Stmt>>,
 }
 
 s CaseBlock {
@@ -104,7 +99,7 @@ s CaseBlock {
 s MatchPattern {
     ident: S,
     case: S,
-    binding: Option<Binding>,
+    binding: O<Binding>,
 }
 
 t Binding {
@@ -120,8 +115,8 @@ s WhileStmt {
 s VarDecl {
     mutable: bool,
     ident: S,
-    ty: Option<Type>,
-    value: Option<Expr>,
+    ty: O<Type>,
+    value: O<Expr>,
 }
 
 s AssignmentStmt {
@@ -138,7 +133,7 @@ t Stmt {
     Expr(Expr),
     Break,
     Continue,
-    Return(Option<Expr>),
+    Return(O<Expr>),
 }
 
 // MARK: Declarations
@@ -156,7 +151,7 @@ s Struct {
 
 s Case {
     ident: S,
-    ty: Option<Type>,
+    ty: O<Type>,
 }
 
 s Enum {
@@ -173,7 +168,7 @@ s FunctionSignature {
     ident: S,
     generic_parameters: V<S>,
     parameters: V<Parameter>,
-    ret: Option<Type>,
+    ret: O<Type>,
 }
 
 s Function {

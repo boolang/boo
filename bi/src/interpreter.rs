@@ -610,6 +610,11 @@ impl Interpreter {
         self.register_builtin("I_to_string", vec![("a", "I")], "S", |_, arguments| {
             Ok(Value::String(arguments[0].value().as_int()?.to_string()))
         });
+        self.register_builtin("I_eq", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
+            Ok(Value::Bool(
+                arguments[0].value().as_int()? == arguments[1].value().as_int()?,
+            ))
+        });
 
         self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
             Ok(Value::String(
@@ -644,6 +649,24 @@ impl Interpreter {
                     .vector
                     .push(arguments[1].value());
                 Ok(Value::Unit)
+            },
+        );
+
+        self.register_generic_builtin(
+            "V_len",
+            vec!["T"],
+            vec![("vec", vec_t.clone(), false)],
+            int.clone(),
+            |_, arguments| {
+                let mutex = arguments[0].get_mut()?;
+                Ok(Value::Int(
+                    mutex
+                        .lock()
+                        .map_err(|_| anyhow!("Poisoned lock"))?
+                        .as_vector_mut()?
+                        .vector
+                        .len() as i128,
+                ))
             },
         );
 
