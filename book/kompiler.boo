@@ -3,6 +3,18 @@ s BuiltinFunction {
     asm: S
 }
 
+s Structinstance {
+    key: MMKey,
+    fields: V<Field>,
+}
+
+s FunctionInstance {
+    key: MMKey,
+    parameters: V<Parameter>,
+    ret: O<Type>,
+    stmts: V<Stmt>,
+}
+
 s Ctx {
     structs: Map<Struct>,
     enums: Map<Enum>,
@@ -27,7 +39,7 @@ f kompile(ast: Ast) {
         structs: Map_new<Struct>(),
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
-        fn_q: Q_new<S>(),
+        fn_q: Q_new<MMKey>(),
         builtin_fns: Map_new<BuiltinFunction>(),
         constants: V_new<Constant>(),
         wr: AsmWriter {
@@ -78,17 +90,18 @@ f kompile(ast: Ast) {
     print("# functions:");
     print(I_to_string(Map_count<Function>(ctx.fns)));
 
-    Q_push<S>(&ctx.fn_q, "main");
-    v fn = Q_pop<S>(&ctx.fn_q);
-    w (O_is_some<S>(fn)) {
-        l fn_ast = Map_get<Function>(ctx.fns, O_get<S>(fn));
-        i (O_is_some<Function>(fn_ast)) {
-            print(S_concat("Kompiling function ", O_get<S>(fn)));
-            kompile_fn(&ctx, O_get<Function>(fn_ast));
+    Q_push<MMKey>(&ctx.fn_q, MMKey { ident: "main", generic_args: V_new<Type>() });
+    v fn = Q_pop<MMKey>(&ctx.fn_q);
+    w (O_is_some<MMKey>(fn)) {
+        l key = O_get<MMKey>(fn);
+        l fn_ast = instantiate_fn(&ctx, key);
+        i (O_is_some<FunctionInstance>(fn_ast)) {
+            print(S_concat("Kompiling function ", key.ident));
+            kompile_fn(&ctx, O_get<FunctionInstance>(fn_ast));
         } e {
             print(S_concat("Could not find function ", fn));
         }
-        fn = Q_pop<S>(&ctx.fn_q);
+        fn = Q_pop<MMKey>(&ctx.fn_q);
     }
 
     emit_builtins(&ctx);
@@ -108,8 +121,50 @@ f emit_builtins(ctx: &Ctx) {
     }
 }
 
-f kompile_fn(ctx: &Ctx, fn: Function) {
-    AW_emit_dummy_function_prelude(&ctx.wr, fn.signature.ident);
+f instantiate_fn(ctx: &Ctx, key: MMKey) -> O<FunctionInstance> {
+    l fn_ast = Map_get<Function>(ctx.fns, key.ident);
+    i (O_is_none<Function>(fn_ast)) {
+        r O_none<FunctionInstance>();
+    }
+
+    l fn = O_get<Function>(fn_ast);
+
+    v new_params = V_new<Parameter>();
+    v idx = 0;
+    w (I_lt(idx, V_len<Parameter>(fn.signature.parameters))) {
+        v parameter = V_get<Parameter>(fn.signature.parameters, idx);
+        parameter.ty.ty = instantiate_type(parameter.ty.ty, fn.signature.generic_parameters, key.generic_args);
+        V_push<Parameter>(&new_params, parameter);
+        idx = I_add(idx, 1);
+    }
+
+    r O_some<FunctionInstance>(FunctionInstance {
+        key: key,
+        parameters: new_params,
+        ret: fn.signature.ret,
+        stmts: fn.stmts
+    });
+}
+
+f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
+    l param_idx = V_find_string(params, type.ident);
+    i (not(I_eq(param_idx, -1))) {
+        r V_get<Type>(args, param_idx);
+    }
+
+    v new_type = type;
+    v idx = 0;
+    w (I_lt(idx, V_len<Type>(type.generic_parameters))) {
+        V_set<Type>(
+            &type.generic_parameters,
+            instantiate_type(V_get<Type>(type.generic_parameters, idx), params, args)
+        );
+        idx = I_add(idx, 1);
+    }
+}
+
+f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
+    AW_emit_dummy_function_prelude(&ctx.wr, fn.key);
     v idx = 0;
     w (I_lt(idx, V_len<Stmt>(fn.stmts))) {
         l stmt = V_get<Stmt>(fn.stmts, idx);
@@ -215,11 +270,6 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
         print("Function has this many arguments");
         print(I_to_string(nparams));
 
-        i (not(I_eq(V_len<S>(fn.signature.generic_parameters), 0))) {
-            print("Generic functions are not yet supported");
-            exit();
-        }
-
         l nargs = V_len<ArgumentValue>(call.arguments);
         i (not(I_eq(nparams, nargs))) {
             print("Error in function:");
@@ -232,18 +282,18 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
         }
 
         AW_call(&ctx.wr, call.ident);
-        queue_fn(&ctx, call.ident);
+        queue_fn(&ctx, MMKey { ident: call.ident, generic_args: call.generic_parameters });
     }
 
     l nargs = V_len<ArgumentValue>(call.arguments);
     AW_shrink_stack(&ctx.wr, I_mul(8, nargs));
 }
 
-f queue_fn(ctx: &Ctx, fn: S) {
-    i (Q_contains_string(ctx.fn_q, fn)) {
+f queue_fn(ctx: &Ctx, fn: MMKey) {
+    i (Q_contains_mmkey(ctx.fn_q, fn)) {
         r;
     }
-    Q_push<S>(&ctx.fn_q, fn);
+    Q_push<MMKey>(&ctx.fn_q, fn);
 }
 
 f resolve_type(ctx: Ctx, type: Type) -> Type {

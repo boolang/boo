@@ -24,3 +24,21 @@ f S_concat(first: S, second: S) -> S {
 
     r acc;
 }
+
+f I_min(left: I, right: I) -> I {
+    i (I_lt(left, right)) {
+        r left;
+    }
+    r right;
+}
+
+f V_find_string(vec: V<S>, key: S) -> I {
+    v idx = 0;
+    w (I_lt(idx, V_len<S>(vec))) {
+        i (S_eq(key, V_get<S>(vec, idx))) {
+            r idx;
+        }
+        idx = I_add(idx, 1);
+    }
+    r -1;
+}

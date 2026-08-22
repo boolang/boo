@@ -61,12 +61,12 @@ f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
     }
 }
 
-f AW_emit_dummy_function_prelude(wr: &AsmWriter, ident: S) {
+f AW_emit_dummy_function_prelude(wr: &AsmWriter, key: MMKey) {
     l fn_idx = AW_idx(wr);
 
     // Fill in pending jumps
     l addr = I_add(fn_idx, wr.base_addr);
-    l lookup = Map_get<V<I>>(wr.pending_jumps, ident);
+    l lookup = Map_get<V<I>>(wr.pending_jumps, key.ident);
     i (O_is_some<V<I>>(lookup)) {
         l offsets = O_get<V<I>>(lookup);
         v idx = 0;

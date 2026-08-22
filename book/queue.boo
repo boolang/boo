@@ -30,3 +30,13 @@ f Q_contains_string(queue: Q<S>, element: S) -> B {
 	}
 	r n;
 }
+
+f Q_contains_mmkey(queue: Q<MMKey>, element: MMKey) -> B {
+	v idx = queue.idx;
+	w (I_lt(idx, V_len<MMKey>(queue.queue))) {
+		i (MMKey_eq(element, V_get<MMKey>(queue.queue, idx))) {
+			r y;
+		}
+	}
+	r n;
+}
