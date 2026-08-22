@@ -113,6 +113,7 @@ fn main() {
                         ident: ident("main"),
                         parameters: vec![],
                         ret: None,
+                        generic_parameters: vec![],
                     },
                     stmts: vec![
                         Stmt::VarDecl(VarDecl {
@@ -135,6 +136,7 @@ fn main() {
                         }),
                         Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                             ident: ident("print"),
+                            generic_parameters: vec![],
                             arguments: vec![ast::ArgumentValue::Immutable(Expr::MemberAccess(
                                 Box::new(MemberAccessExpr {
                                     base: Expr::Ident(ident("person")),
@@ -151,6 +153,7 @@ fn main() {
                         }),
                         Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                             ident: ident("print"),
+                            generic_parameters: vec![],
                             arguments: vec![ArgumentValue::Immutable(Expr::MemberAccess(
                                 Box::new(MemberAccessExpr {
                                     base: Expr::Ident(ident("person")),
@@ -160,9 +163,11 @@ fn main() {
                         })),
                         Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
                             ident: ident("print"),
+                            generic_parameters: vec![],
                             arguments: vec![ArgumentValue::Immutable(Expr::FunctionCall(
                                 FunctionCallExpr {
                                     ident: ident("S_new_from_char"),
+                                    generic_parameters: vec![],
                                     arguments: vec![ArgumentValue::Immutable(Expr::Subscript(
                                         Box::new(SubscriptExpr {
                                             base: Expr::MemberAccess(Box::new(MemberAccessExpr {

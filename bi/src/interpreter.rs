@@ -536,6 +536,7 @@ impl Interpreter {
             BuiltinFunction {
                 signature: FunctionSignature {
                     ident: Ident::new(ident.into(), Range { start: 0, end: 0 }),
+                    generic_parameters: vec![],
                     parameters: parameters
                         .iter()
                         .map(|(label, ty)| Parameter {

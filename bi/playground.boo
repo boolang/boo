@@ -17,6 +17,10 @@ f S_replace(self: &S, new: S) {
     self = new;
 }
 
+f id<T>(value: T) -> T {
+    r value;
+}
+
 f main() {
     v person = Person { name: "stackotter", age: 1 };
     print(person.name);
@@ -29,4 +33,6 @@ f main() {
 
     l token1 = Token::Comma;
     l token2 = Token::Integer(1);
+
+    print(id(name));
 }

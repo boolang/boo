@@ -9,9 +9,9 @@ use winnow::token::{literal, one_of};
 
 use crate::ast::{
     ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, EnumInitExpr,
-    Expr, Field, Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr,
-    MemberAccessExpr, MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct,
-    StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
+    Expr, Field, Function, FunctionCallExpr, FunctionSignature, Ident, IfBlock, IfStmt,
+    LiteralExpr, MemberAccessExpr, MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt,
+    Struct, StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -97,11 +97,30 @@ fn case(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Case> {
     .parse_next(input)
 }
 
+fn generic_params(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Ident>> {
+    delimited(
+        literal(TokenKind::Less),
+        separated(1.., ident, literal(TokenKind::Comma)),
+        literal(TokenKind::Greater),
+    )
+    .parse_next(input)
+}
+
+fn generic_call_params(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Type>> {
+    delimited(
+        literal(TokenKind::Less),
+        separated(1.., r#type, literal(TokenKind::Comma)),
+        literal(TokenKind::Greater),
+    )
+    .parse_next(input)
+}
+
 fn function(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Function> {
     preceded(
         literal(TokenKind::KFunction),
         cut_err(seq!(
             ident,
+            opt(generic_params),
             _: literal(TokenKind::OpenPar),
             arguments,
             _: literal(TokenKind::ClosePar),
@@ -109,14 +128,17 @@ fn function(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Function> {
             block,
         )),
     )
-    .map(|(ident, parameters, ret, stmts)| Function {
-        signature: FunctionSignature {
-            ident,
-            parameters,
-            ret,
+    .map(
+        |(ident, generic_parameters, parameters, ret, stmts)| Function {
+            signature: FunctionSignature {
+                ident,
+                generic_parameters: generic_parameters.unwrap_or(vec![]),
+                parameters,
+                ret,
+            },
+            stmts,
         },
-        stmts,
-    })
+    )
     .parse_next(input)
 }
 
@@ -333,12 +355,17 @@ fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> 
 fn function_call(input: &mut TokenSlice<Token>) -> winnow::ModalResult<FunctionCallExpr> {
     seq!(
         ident,
+        opt(generic_call_params),
         _: literal(TokenKind::OpenPar),
         cut_err(separated(0.., arg_value, literal(TokenKind::Comma))),
         _: opt(literal(TokenKind::Comma)),
         _: cut_err(literal(TokenKind::ClosePar)),
     )
-    .map(|(ident, arguments): (_, Vec<ArgumentValue>)| FunctionCallExpr { ident, arguments })
+    .map(|(ident, generic_call_params, arguments)| FunctionCallExpr {
+        ident,
+        generic_parameters: generic_call_params.unwrap_or(vec![]),
+        arguments,
+    })
     .parse_next(input)
 }
 

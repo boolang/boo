@@ -116,6 +116,7 @@ pub enum ArgumentValue {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FunctionCallExpr {
     pub ident: Ident,
+    pub generic_parameters: Vec<Type>,
     pub arguments: Vec<ArgumentValue>,
 }
 
@@ -299,6 +300,7 @@ pub struct Parameter {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FunctionSignature {
     pub ident: Ident,
+    pub generic_parameters: Vec<Ident>,
     pub parameters: Vec<Parameter>,
     pub ret: Option<Type>,
 }
