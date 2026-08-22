@@ -2,6 +2,8 @@ use std::range::Range;
 use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
+use yoke::Yoke;
+
 use crate::ast::{
     ArgumentType, ArgumentValue as ArgumentValueExpr, Ast, Binding, Decl, Enum, EnumInitExpr, Expr,
     Function, FunctionSignature, Ident, LiteralExpr, Parameter, PlaceExpr, SimpleType, Stmt,
@@ -44,7 +46,7 @@ impl EnumValue {
 pub enum Value {
     Int(i128),
     Bool(bool),
-    String(Vec<u8>),
+    String(Yoke<&'static [u8], Arc<[u8]>>),
     Character(u8),
     Unit,
     Struct(StructValue),
@@ -124,7 +126,7 @@ impl Value {
         }
     }
 
-    pub fn as_string(&self) -> Result<Vec<u8>> {
+    pub fn as_string(&self) -> Result<Yoke<&'static [u8], Arc<[u8]>>> {
         match &self {
             Value::String(value) => Ok(value.clone()),
             _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
@@ -133,7 +135,7 @@ impl Value {
 
     pub fn as_rs_string(&self) -> Result<String> {
         match &self {
-            Value::String(value) => Ok(String::from_utf8(value.clone())?),
+            Value::String(value) => Ok(String::from_utf8(value.get().to_vec())?),
             _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
         }
     }
@@ -486,7 +488,7 @@ impl Interpreter {
             |_, arguments| {
                 std::fs::write(
                     arguments[0].value().as_rs_string()?,
-                    arguments[1].value().as_string()?,
+                    arguments[1].value().as_string()?.get(),
                 )
                 .unwrap();
                 Ok(Value::Unit)
@@ -576,10 +578,17 @@ impl Interpreter {
             "S_new_from_char",
             vec![("char", "C")],
             "S",
-            |_, arguments| Ok(Value::String(vec![arguments[0].value().as_char()?])),
+            |_, arguments| {
+                Ok(Value::String(Yoke::attach_to_cart(
+                    vec![arguments[0].value().as_char()?].into(),
+                    |cart| &*cart,
+                )))
+            },
         );
         self.register_builtin("S_is_empty", vec![("string", "S")], "B", |_, arguments| {
-            Ok(Value::Bool(arguments[0].value().as_string()?.is_empty()))
+            Ok(Value::Bool(
+                arguments[0].value().as_string()?.get().is_empty(),
+            ))
         });
         self.register_builtin(
             "S_push",
@@ -587,9 +596,9 @@ impl Interpreter {
             "S",
             |_, arguments| {
                 Ok(Value::String({
-                    let mut s = arguments[0].value().as_string()?;
+                    let mut s = arguments[0].value().as_string()?.get().to_vec();
                     s.push(arguments[1].value().as_char()?);
-                    s
+                    Yoke::attach_to_cart(s.into(), |cart| &*cart)
                 }))
             },
         );
@@ -599,8 +608,12 @@ impl Interpreter {
             "S",
             |_, arguments| {
                 Ok(Value::String(
-                    arguments[0].value().as_string()?[arguments[1].value().as_int()? as usize..]
-                        .to_owned(),
+                    arguments[0]
+                        .value()
+                        .as_string()?
+                        .try_map_with_cart_cloned(|s, cart| {
+                            Ok::<_, anyhow::Error>(&s[arguments[1].value().as_int()? as usize..])
+                        })?,
                 ))
             },
         );
@@ -649,9 +662,15 @@ impl Interpreter {
             Ok(Value::Int(-arguments[0].value().as_int()?))
         });
         self.register_builtin("I_to_string", vec![("a", "I")], "S", |_, arguments| {
-            Ok(Value::String(
-                arguments[0].value().as_int()?.to_string().into_bytes(),
-            ))
+            Ok(Value::String(Yoke::attach_to_cart(
+                arguments[0]
+                    .value()
+                    .as_int()?
+                    .to_string()
+                    .into_bytes()
+                    .into(),
+                |cart| &*cart,
+            )))
         });
         self.register_builtin("I_eq", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
             Ok(Value::Bool(
@@ -662,33 +681,41 @@ impl Interpreter {
             Ok(Value::Character(arguments[0].value().as_int()? as u8))
         });
         self.register_builtin("I_u16_to_bytes", vec![("a", "I")], "S", |_, arguments| {
-            Ok(Value::String(
+            Ok(Value::String(Yoke::attach_to_cart(
                 (arguments[0].value().as_int()? as u16)
                     .to_le_bytes()
-                    .to_vec(),
-            ))
+                    .to_vec()
+                    .into(),
+                |cart| &*cart,
+            )))
         });
         self.register_builtin("I_u32_to_bytes", vec![("a", "I")], "S", |_, arguments| {
-            Ok(Value::String(
+            Ok(Value::String(Yoke::attach_to_cart(
                 (arguments[0].value().as_int()? as u32)
                     .to_le_bytes()
-                    .to_vec(),
-            ))
+                    .to_vec()
+                    .into(),
+                |cart| &*cart,
+            )))
         });
         self.register_builtin("I_u64_to_bytes", vec![("a", "I")], "S", |_, arguments| {
-            Ok(Value::String(
+            Ok(Value::String(Yoke::attach_to_cart(
                 (arguments[0].value().as_int()? as u64)
                     .to_le_bytes()
-                    .to_vec(),
-            ))
+                    .to_vec()
+                    .into(),
+                |cart| &*cart,
+            )))
         });
 
         self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
-            Ok(Value::String(
+            Ok(Value::String(Yoke::attach_to_cart(
                 std::fs::read_to_string(arguments[0].value().as_rs_string()?)
                     .unwrap()
-                    .into_bytes(),
-            ))
+                    .into_bytes()
+                    .into(),
+                |cart| &*cart,
+            )))
         });
 
         // MARK: Vector built-ins
@@ -1316,15 +1343,15 @@ impl Interpreter {
                 let index_value = self.eval_expr(&subscript.index)?;
                 let index = index_value.as_int()?;
 
-                if index < 0 || index as usize >= string.len() {
+                if index < 0 || index as usize >= string.get().len() {
                     return Err(anyhow!(
                         "Index {} out of bounds for string of length {}",
                         index,
-                        string.len()
+                        string.get().len()
                     ));
                 }
 
-                Ok(Value::Character(string[index as usize]))
+                Ok(Value::Character(string.get()[index as usize]))
             }
         }
     }
@@ -1460,7 +1487,10 @@ impl Interpreter {
         match literal {
             LiteralExpr::Int(value) => Ok(Value::Int(value.value)),
             LiteralExpr::Bool(value) => Ok(Value::Bool(value.value)),
-            LiteralExpr::String(value) => Ok(Value::String(value.value.clone().into_bytes())),
+            LiteralExpr::String(value) => Ok(Value::String(Yoke::attach_to_cart(
+                value.value.clone().into_bytes().into(),
+                |cart| &*cart,
+            ))),
             LiteralExpr::Char(value) => Ok(Value::Character(u8::try_from(value.value)?)),
         }
     }

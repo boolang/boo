@@ -7,3 +7,4 @@ edition = "2024"
 anyhow = "1.0.104"
 clap = { version = "4.6.6", features = ["derive"] }
 winnow = "1.0.4"
+yoke = "0.8.3"
