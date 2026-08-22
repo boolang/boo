@@ -30,7 +30,9 @@ f parse(input: S) -> Ast {
     }
 }
 
-f parse_function(input: S) -> Parse<I> {
+// MARK: Functions
+
+f parse_function(input: S) -> Parse<Function> {
 	dbg_print("> function");
     v acc = input;
 
@@ -40,10 +42,191 @@ f parse_function(input: S) -> Parse<I> {
 
     l name = parse_ident(acc);
     acc = name.rest;
+
+    l generic_params = parse_generic_params(acc);
+    acc = generic_params.rest;
+
+    acc = next_token(acc).rest; // OpenPar
+
+    l params = parse_param_list(acc);
+    acc = params.rest;
+
+    acc = next_token(acc).rest; // ClosePar
+    
+    v ret_ty = O_none<Type>();
+    result = next_token(acc);
+    m (result.value) {
+        Token::Arrow => {
+            acc = result.rest;
+            v ty = parse_type(acc);
+            acc = ty.rest;
+            ret_ty = O_some<Type>(ty.value);
+        }
+    }
+
+    l stmts = parse_block(acc);
+    acc = stmts.rest;
     
 	dbg_print("< function");
-    r Parse<I> { rest: acc, value: 0 };
+    r Parse<Function> {
+        rest: acc,
+        value: Function {
+            signature: FunctionSignature {
+                ident: name.value,
+                generic_parameters: generic_params.value,
+                parameters: params.value,
+                ret: ret_ty
+            },
+            stmts: stmts.value
+        }
+    };
 }
+
+f parse_block(input: S) -> Parse<V<Stmt>> {
+    v acc = input;
+	dbg_print("> block");
+
+    acc = next_token(acc).rest; // OpenBrace
+
+    v stmts = V_new<Stmt>();
+
+    w (y) {
+        v result = next_token(acc);
+        m (result.value) {
+            Token::CloseBrace => {
+                acc = result.rest;
+                b;
+            }
+        }
+        l stmt = parse_stmt(acc);
+        acc = field.rest;
+        V_push<Stmt>(&stmts, stmt.value);
+    }
+
+    acc = next_token(acc).rest; // CloseBrace
+
+	dbg_print("< block");
+    r Parse<V<Stmt>> { rest: acc, value: fields };
+}
+
+f parse_stmt(input: S) -> Parse<Stmt> {
+    v acc = input;
+	dbg_print("> stmt");
+
+    v result = next_token(acc);
+
+    m (result.value) {
+        Token::KIf => {
+            l if = parse_if(acc);
+            acc = if.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::If(if.value) };
+        }
+        Token::KWhile => {
+            l while = parse_while(acc);
+            acc = while.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::While(while.value) };
+        }
+        Token::KMatch => {
+            l match = parse_match(acc);
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::Match(match.value) };
+        }
+        Token::KBreak => {
+            acc = result.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::Break };
+        }
+        Token::KContinue => {
+            acc = result.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::Continue };
+        }
+        Token::KReturn => {
+            l expr = parse_expr(acc);
+            acc = expr.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::Return(expr.value) };
+        }
+        Token::KLet => {
+            l decl = parse_var_decl(acc);
+            acc = decl.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
+        }
+        Token::KVar => {
+            l decl = parse_var_decl(acc);
+            acc = decl.rest;
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
+        }
+        _ => {
+            l expr = parse_expr(acc);
+        	dbg_print("< stmt");
+            r Parse<Stmt> { rest: acc, value: Stmt::Expr(expr) };
+        }
+    }
+}
+
+f parse_param_list(input: S) -> Parse<V<Parameter>> {
+    v acc = input;
+	dbg_print("> param_list");
+
+    v result = next_token(acc);
+    // Deliberately elided: acc = result.rest;
+
+    v fields = V_new<Parameter>();
+
+    w (y) {
+        result = next_token(acc);
+        m (result.value) {
+            Token::ClosePar => {
+                b;
+            }
+            Token::Comma => {
+                acc = result.rest;
+                c;
+            }
+        }
+        l field = parse_param(acc);
+        acc = field.rest;
+        V_push<Parameter>(&fields, field.value);
+    }
+
+	dbg_print("< param_list");
+    r Parse<V<Parameter>> { rest: acc, value: fields };
+}
+
+f parse_param(input: S) -> Parse<Parameter> {
+    v acc = input;
+	dbg_print("> param");
+
+    v ident = parse_ident(acc);
+    acc = ident.rest;
+
+    acc = next_token(acc).rest; // Colon
+
+    v mutable = n;
+    v result = next_token(acc);
+    m (result.value) {
+        Token::Ampersand => {
+            mutable = y;
+            acc = result.rest;
+        }
+    }
+
+    v type = parse_type(acc);
+    acc = type.rest;
+
+	dbg_print("< param");
+    r Parse<Parameter> {
+        rest: acc,
+        value: Parameter { label: ident.value, ty: ArgumentType { ty: type.value, mutable: mutable } }
+    };
+}
+
+// MARK: Types
 
 f parse_struct(input: S) -> Parse<Struct> {
     v acc = input;
@@ -212,6 +395,8 @@ f parse_case(input: S) -> Parse<Case> {
 	dbg_print("< case");
     r Parse<Case> { rest: acc, value: Case { ident: ident.value, ty: type } };
 }
+
+// MARK: Shared
 
 f parse_type(input: S) -> Parse<Type> {
     v acc = input;

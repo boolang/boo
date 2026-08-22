@@ -203,6 +203,7 @@ export default grammar({
     enum_init: $ => prec.left(-1, seq($.identifier, '::', $.expression, optional(seq('(', $.binding, ')')))),
 
     pattern: $ => choice(
+      '_',
       seq($.type, '::', $.identifier),
       seq($.type, '::', $.identifier, '(', $.binding, ')'),
     ),
