@@ -45,6 +45,20 @@ pub enum Type {
     Simple(SimpleType),
 }
 
+impl Type {
+    pub fn is_equiv(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Simple(a), Type::Simple(b)) => {
+                a.ident.value == b.ident.value
+                    && a.generic_parameters
+                        .iter()
+                        .zip(b.generic_parameters.iter())
+                        .all(|(a, b)| a.is_equiv(b))
+            }
+        }
+    }
+}
+
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

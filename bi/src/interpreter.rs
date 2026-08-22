@@ -606,7 +606,7 @@ impl Interpreter {
         let mut values = HashMap::new();
         for (field, argument) in struct_decl.fields.iter().zip(&struct_init.arguments) {
             let value = self.eval_expr(&argument.value)?;
-            if value.infer_type() != field.ty {
+            if !value.infer_type().is_equiv(&field.ty) {
                 return Err(anyhow!(
                     "Expected expression of type {} but got expression of type {} (for field {} of struct {})",
                     field.ty,

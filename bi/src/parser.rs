@@ -152,7 +152,6 @@ fn r#if(input: &mut TokenSlice<Token>) -> winnow::ModalResult<IfStmt> {
     preceded(
         literal(TokenKind::KIf),
         cut_err(seq!(
-            _: literal(TokenKind::KIf),
             separated(
                 1..,
                 (delimited(literal(TokenKind::OpenPar), expr, literal(TokenKind::ClosePar)), block)
