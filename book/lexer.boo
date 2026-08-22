@@ -1,7 +1,3 @@
-f dbg_print(string: S) {
-    print(string);
-}
-
 f print_token(token: Token) {
     m (token) {
         Token::Id(ident) => {

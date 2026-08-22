@@ -6,6 +6,10 @@ f assert(predicate: B, info: S) {
     }
 }
 
+f dbg_print(string: S) {
+    print(string);
+}
+
 f S_concat(first: S, second: S) -> S {
     v acc = first;
     v acc2 = second;
