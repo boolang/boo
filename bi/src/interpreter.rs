@@ -373,6 +373,27 @@ impl Interpreter {
             println!("{}", arguments[0].as_string()?);
             Ok(Value::Unit)
         });
+
+        self.register_builtin("or", vec![("first", "B"), ("second", "B")], |arguments| {
+            Ok(Value::Bool(
+                arguments[0].as_bool()? || arguments[1].as_bool()?,
+            ))
+        });
+        self.register_builtin("and", vec![("first", "B"), ("second", "B")], |arguments| {
+            Ok(Value::Bool(
+                arguments[0].as_bool()? && arguments[1].as_bool()?,
+            ))
+        });
+        self.register_builtin("not", vec![("first", "B")], |arguments| {
+            Ok(Value::Bool(!arguments[0].as_bool()?))
+        });
+
+        self.register_builtin("C_eq", vec![("char", "C"), ("char", "C")], |arguments| {
+            Ok(Value::Bool(
+                arguments[0].as_char()? == arguments[1].as_char()?,
+            ))
+        });
+
         self.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
             Ok(Value::String(arguments[0].as_char()?.to_string()))
         });
@@ -449,7 +470,7 @@ impl Interpreter {
         }
 
         for (param, arg) in signature.parameters.iter().zip(&arguments) {
-            if param.ty != arg.infer_type() {
+            if !param.ty.ty.is_equiv(&arg.infer_type().ty) {
                 return Err(anyhow!(
                     "Parameter '{}' of function '{}' has type {} but got argument of type {}",
                     param.label.value,

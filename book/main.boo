@@ -5,8 +5,9 @@ f main() {
     // TODO: Get target file/files from argv
     // l src = "hello.boo";
     // l contents = read(src);
-    l contents = "f main() {}";
-    print(contents);
+    l contents = "// thiaenstrahsieanthiea s tuokwtj
+      f main() {}";
+    print(next_token(contents).content);
 }
 
 s TokenResult {
@@ -22,23 +23,22 @@ t Kind {
 }
 
 s Token {
-    kind: Kind,
     content: S
 }
 
 f next_token(input: S) -> TokenResult {
     v acc = input;
     w (or(
-        or(or(eq(acc[0], ' '), eq(acc[0], '\n')), or(eq(acc[0], '\t'), eq(acc[0], '\r'))),
-        or(and(eq(acc[0], '/'), eq(acc[1], '/')))
+        or(or(C_eq(acc[0], ' '), C_eq(acc[0], '\n')), or(C_eq(acc[0], '\t'), C_eq(acc[0], '\r'))),
+        and(C_eq(acc[0], '/'), C_eq(acc[1], '/'))
     )) {
-        i (or(and(eq(acc[0], '/'), eq(acc[1], '/')))) {
-            w (not(eq(acc[0], '\n'))) {
+        i (and(C_eq(acc[0], '/'), C_eq(acc[1], '/'))) {
+            w (not(C_eq(acc[0], '\n'))) {
                 acc = S_advance(acc, 1);
             }
         }
         acc = S_advance(acc, 1);
     }
 
-    r Token { kind: Ident, content: input };
+    r Token { content: acc };
 }
