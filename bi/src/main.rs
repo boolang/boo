@@ -6,7 +6,7 @@ use crate::ast::{
 };
 use crate::interpreter::{Interpreter, Value};
 use crate::lexer::tokenise;
-use crate::parser::parse;
+use crate::parser::{parse, print_parse_error};
 
 use std::path::PathBuf;
 use std::range::Range;
@@ -80,7 +80,7 @@ fn main() {
     let ast = match parse(&tokens) {
         Ok(ast) => ast,
         Err(e) => {
-            eprintln!("{e:?}");
+            print_parse_error(&expr, e).unwrap();
             return;
         }
     };

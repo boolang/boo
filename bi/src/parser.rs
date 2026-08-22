@@ -282,3 +282,99 @@ fn string_lit(input: &mut TokenSlice<Token>) -> winnow::Result<Rich<String>> {
         })
         .parse_next(input)
 }
+
+// Below reporting code taken more or less straight from winnow
+fn translate_position(input: &[u8], index: usize) -> (usize, usize) {
+    if input.is_empty() {
+        return (0, index);
+    }
+
+    let safe_index = index.min(input.len() - 1);
+    let column_offset = index - safe_index;
+    let index = safe_index;
+
+    let nl = input[0..index]
+        .iter()
+        .rev()
+        .enumerate()
+        .find(|(_, b)| **b == b'\n')
+        .map(|(nl, _)| index - nl - 1);
+    let line_start = match nl {
+        Some(nl) => nl + 1,
+        None => 0,
+    };
+    let line = input[0..line_start].iter().filter(|b| **b == b'\n').count();
+
+    // HACK: This treats byte offset and column offsets the same
+    let column = core::str::from_utf8(&input[line_start..=index])
+        .map(|s| s.chars().count() - 1)
+        .unwrap_or_else(|_| index - line_start);
+    let column = column + column_offset;
+
+    (line, column)
+}
+
+pub fn print_parse_error(
+    input: &str,
+    e: ParseError<TokenSlice<'_, Token>, ContextError>,
+) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut f = std::io::stderr().lock();
+    let input = input.as_bytes();
+    let token = &e.input()[e.offset()];
+    let span_start = token.span.start;
+    let span_end = token.span.end;
+    if input.contains(&b'\n') {
+        let (line_idx, col_idx) = translate_position(input, span_start);
+        let line_num = line_idx + 1;
+        let col_num = col_idx + 1;
+        let gutter = line_num.to_string().len();
+        let content = input
+            .split(|c| *c == b'\n')
+            .nth(line_idx)
+            .expect("valid line number");
+
+        writeln!(f, "parse error at line {line_num}, column {col_num}")?;
+        //   |
+        for _ in 0..gutter {
+            write!(f, " ")?;
+        }
+        writeln!(f, " |")?;
+
+        // 1 | 00:32:00.a999999
+        write!(f, "{line_num} | ")?;
+        writeln!(f, "{}", String::from_utf8_lossy(content))?;
+
+        //   |          ^
+        for _ in 0..gutter {
+            write!(f, " ")?;
+        }
+        write!(f, " | ")?;
+        for _ in 0..col_idx {
+            write!(f, " ")?;
+        }
+        // The span will be empty at eof, so we need to make sure we always print at least
+        // one `^`
+        write!(f, "^")?;
+        for _ in (span_start + 1)..(span_end.min(span_start + content.len())) {
+            write!(f, "^")?;
+        }
+        writeln!(f)?;
+    } else {
+        let content = input;
+        writeln!(f, "{}", String::from_utf8_lossy(content))?;
+        for _ in 0..span_start {
+            write!(f, " ")?;
+        }
+        // The span will be empty at eof, so we need to make sure we always print at least
+        // one `^`
+        write!(f, "^")?;
+        for _ in (span_start + 1)..(span_end.min(span_start + content.len())) {
+            write!(f, "^")?;
+        }
+        writeln!(f)?;
+    }
+    write!(f, "{}", e.inner())?;
+
+    Ok(())
+}
