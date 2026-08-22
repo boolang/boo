@@ -677,6 +677,7 @@ impl Interpreter {
                     return self.exec_block(&else_block.stmts, false);
                 }
             }
+            Stmt::Match(_) => todo!("match"),
             Stmt::While(while_stmt) => loop {
                 if !self.eval_condition(&while_stmt.condition)? {
                     break;

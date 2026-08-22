@@ -207,6 +207,31 @@ pub struct IfStmt {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct MatchStmt {
+    pub value: Expr,
+    pub case_blocks: Vec<CaseBlock>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct CaseBlock {
+    pub pattern: MatchPattern,
+    pub stmts: Vec<Stmt>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct MatchPattern {
+    pub ident: Ident,
+    pub case: Ident,
+    pub binding: Option<Binding>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum Binding {
+    Underscore,
+    Ident(Ident),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WhileStmt {
     pub condition: Expr,
     pub stmts: Vec<Stmt>,
@@ -229,6 +254,7 @@ pub struct AssignmentStmt {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Stmt {
     If(IfStmt),
+    Match(MatchStmt),
     While(WhileStmt),
     VarDecl(VarDecl),
     Assignment(AssignmentStmt),
