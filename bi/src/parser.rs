@@ -10,8 +10,8 @@ use winnow::token::{literal, one_of};
 use crate::ast::{
     ArgumentType, ArgumentValue, AssignmentStmt, Ast, Case, Decl, ElseBlock, Enum, Expr, Field,
     Function, FunctionCallExpr, FunctionSignature, IfBlock, IfStmt, LiteralExpr, MemberAccessExpr,
-    Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr,
-    SubscriptExpr, Type, VarDecl, WhileStmt,
+    MemberPlaceExpr, Parameter, PlaceExpr, Rich, SimpleType, Stmt, Struct, StructInitArgument,
+    StructInitExpr, SubscriptExpr, Type, VarDecl, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -299,11 +299,22 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
 
 fn place_expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<PlaceExpr> {
     // TODO
-    alt((ident.map(PlaceExpr::Ident),)).parse_next(input)
+    alt((
+        separated(2.., ident, literal(TokenKind::Dot)).map(|lits: Vec<Rich<_>>| {
+            let mut iter = lits.into_iter();
+            let mut x = PlaceExpr::Ident(iter.next().unwrap());
+            for y in iter {
+                x = PlaceExpr::Member(Box::new(MemberPlaceExpr { base: x, member: y }))
+            }
+            x
+        }),
+        ident.map(PlaceExpr::Ident),
+    ))
+    .parse_next(input)
 }
 
 fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> {
-    // TODO: Number literals
+    // TODO: Bool literals
     alt((
         string_lit.map(LiteralExpr::String),
         int_lit.map(LiteralExpr::Int),
