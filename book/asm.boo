@@ -99,9 +99,6 @@ f AW_load_constant(wr: &AsmWriter, reg: Reg, constant_idx: I) {
 
 f AW_push_argument_ptr(wr: &AsmWriter, local_idx: I) {
     // Push address to local onto stack as a function argument
-    l offset = V_get<Local>(wr.locals, i).offset;
-    l code = S_concat(S_concat(S_new_from_char(I_chr(0xb8)), I_u32_to_bytes(offset)), S_new_from_char(I_chr(0x50)));
-    wr.buf = S_concat(wr.buf, code);
 }
 
 f AW_expand_stack(wr: &AsmWriter, sz: I) {
