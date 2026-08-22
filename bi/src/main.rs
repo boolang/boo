@@ -184,13 +184,7 @@ fn main() {
     };
 
     let mut interpreter = Interpreter::new(ast);
-    interpreter.register_builtin("print", vec![("string", "S")], |arguments| {
-        println!("{}", arguments[0].as_string()?);
-        Ok(Value::Unit)
-    });
-    interpreter.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
-        Ok(Value::String(arguments[0].as_char()?.to_string()))
-    });
+    interpreter.register_stdlib_builtins();
 
     interpreter.eval_fn("main", vec![]).unwrap();
 }
