@@ -695,6 +695,7 @@ impl Interpreter {
                 self.eval_fn(&call.ident.value, arguments?)
             }
             Expr::StructInit(struct_init) => self.eval_struct_init(struct_init),
+            Expr::EnumInit(_) => todo!("Enum init not implementd in interpreter"),
             Expr::MemberAccess(member_access) => {
                 let base_value = self.eval_expr(&member_access.base)?;
                 let struct_value = base_value.as_struct()?;

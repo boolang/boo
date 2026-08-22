@@ -132,6 +132,13 @@ pub struct StructInitArgument {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct EnumInitExpr {
+    pub ident: Ident,
+    pub case: Ident,
+    pub value: Option<Expr>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct MemberAccessExpr {
     pub base: Expr,
     pub member: Ident,
@@ -151,6 +158,7 @@ pub enum Expr {
     FunctionCall(FunctionCallExpr),
     Paren(Box<Rich<Expr>>),
     StructInit(StructInitExpr),
+    EnumInit(Box<EnumInitExpr>),
     Subscript(Box<SubscriptExpr>),
 }
 

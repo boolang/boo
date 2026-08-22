@@ -21,5 +21,4 @@ f main() {
     v name = "";
     S_replace(&name, "max");
     print(name);
-    name = mk_name();
 }
