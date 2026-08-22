@@ -479,6 +479,19 @@ impl Interpreter {
             println!("{}", arguments[0].value().as_rs_string()?);
             Ok(Value::Unit)
         });
+        self.register_builtin(
+            "write_to_file",
+            vec![("path", "S"), ("contents", "S")],
+            "U",
+            |_, arguments| {
+                std::fs::write(
+                    arguments[0].value().as_rs_string()?,
+                    arguments[1].value().as_string()?,
+                )
+                .unwrap();
+                Ok(Value::Unit)
+            },
+        );
 
         self.register_builtin(
             "or",
@@ -643,6 +656,30 @@ impl Interpreter {
         self.register_builtin("I_eq", vec![("a", "I"), ("b", "I")], "B", |_, arguments| {
             Ok(Value::Bool(
                 arguments[0].value().as_int()? == arguments[1].value().as_int()?,
+            ))
+        });
+        self.register_builtin("I_chr", vec![("a", "I")], "C", |_, arguments| {
+            Ok(Value::Character(arguments[0].value().as_int()? as u8))
+        });
+        self.register_builtin("I_u16_to_bytes", vec![("a", "I")], "S", |_, arguments| {
+            Ok(Value::String(
+                (arguments[0].value().as_int()? as u16)
+                    .to_le_bytes()
+                    .to_vec(),
+            ))
+        });
+        self.register_builtin("I_u32_to_bytes", vec![("a", "I")], "S", |_, arguments| {
+            Ok(Value::String(
+                (arguments[0].value().as_int()? as u32)
+                    .to_le_bytes()
+                    .to_vec(),
+            ))
+        });
+        self.register_builtin("I_u64_to_bytes", vec![("a", "I")], "S", |_, arguments| {
+            Ok(Value::String(
+                (arguments[0].value().as_int()? as u64)
+                    .to_le_bytes()
+                    .to_vec(),
             ))
         });
 
