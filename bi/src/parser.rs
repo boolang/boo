@@ -314,16 +314,19 @@ fn function_call(input: &mut TokenSlice<Token>) -> winnow::ModalResult<FunctionC
     seq!(
         ident,
         _: literal(TokenKind::OpenPar),
-        cut_err(separated(0.., expr, literal(TokenKind::Comma))),
+        cut_err(separated(0.., arg_value, literal(TokenKind::Comma))),
+        _: opt(literal(TokenKind::Comma)),
         _: cut_err(literal(TokenKind::ClosePar)),
     )
-    .map(|(ident, arguments): (_, Vec<Expr>)| FunctionCallExpr {
-        ident,
-        arguments: arguments
-            .into_iter()
-            .map(ArgumentValue::Immutable)
-            .collect(),
-    })
+    .map(|(ident, arguments): (_, Vec<ArgumentValue>)| FunctionCallExpr { ident, arguments })
+    .parse_next(input)
+}
+
+fn arg_value(input: &mut TokenSlice<Token>) -> winnow::ModalResult<ArgumentValue> {
+    alt((
+        preceded(literal(TokenKind::Ampersand), place_expr).map(ArgumentValue::Mutable),
+        expr.map(ArgumentValue::Immutable),
+    ))
     .parse_next(input)
 }
 
