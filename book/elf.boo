@@ -4,7 +4,7 @@ f gen_elf(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
     // e_ident (\x7FELF then a bunch of random stuff (i just copied a random binary))
     l ident = S_concat(S_concat(S_concat(S_concat(S_new_from_char(I_chr(0x7f)), "ELF"), I_u32_to_bytes(0x00010102)), S_new_from_char(I_chr(0))), "meow :3");
     // e_type (ET_EXEC)
-    l type = I_u16_to_bytes(3);
+    l type = I_u16_to_bytes(2);
     // e_machine (62 is x86 i think)
     l machine = I_u16_to_bytes(62);
     // e_version (1 means current)
@@ -39,7 +39,7 @@ f gen_elf(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
     // p_flags (RWX lolololol)
     l p_flags = I_u32_to_bytes(7);
     // p_offset (where in the file the segment is read from (so right after this header))
-    l p_offset = I_u64_to_bytes(0);
+    l p_offset = I_u64_to_bytes(0x1000);
     // p_vaddr (where in virtual memory to have this loaded to)
     l p_vaddr = I_u64_to_bytes(base_addr);
     // p_paddr (linux doesn't care)
@@ -54,5 +54,9 @@ f gen_elf(entry_point: I, base_addr: I, text_size: I, program: S) -> S {
     l p_header = S_concat(S_concat(S_concat(S_concat(S_concat(S_concat(S_concat(
     p_type, p_flags), p_offset), p_vaddr), p_paddr), p_filesz), p_memsz), p_align);
 
-    r S_concat(S_concat(elf_header, p_header), program);
+    v elf = S_concat(elf_header, p_header);
+    w (I_lt(S_len(elf), 0x1000)) {
+        elf = S_push(elf, 'B');
+    }
+    r S_concat(elf, program);
 }

@@ -83,7 +83,8 @@ f kompile(ast: Ast) {
 
     emit_builtins(&ctx);
 
-    l elf = gen_elf(0, 0, 0, ctx.wr.buf);
+    write_to_file("bin_raw", ctx.wr.buf);
+    l elf = gen_elf(0x400000, 0x400000, S_len(ctx.wr.buf), ctx.wr.buf);
     write_to_file("bin", elf);
     print("boo!");
 }
@@ -91,7 +92,7 @@ f kompile(ast: Ast) {
 f emit_builtins(ctx: &Ctx) {
     v idx = 0;
     w (I_lt(idx, Map_count<BuiltinFunction>(ctx.builtin_fns))) {
-        l entry = V_get<MapEntry<BuiltinFunction>>(ctx.builtin_fns, idx);
+        l entry = V_get<MapEntry<BuiltinFunction>>(ctx.builtin_fns.storage, idx);
         AW_emit_builtin_function(&ctx.wr, entry.key, entry.value);
         idx = I_add(idx, 1);
     }
@@ -132,7 +133,7 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
         Expr::FunctionCall(call) => {
             kompile_fn_call(&ctx, call);
             r ExprResult {
-                local: -1,
+                local: create_unit_local(&ctx),
                 type: Type { ident: "U", generic_parameters: V_new<Type>() },
                 size: 0
             };
@@ -182,6 +183,12 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) {
         }
         idx = I_add(idx, 1);
     }
+}
+
+f create_unit_local(ctx: &Ctx) -> I {
+    l idx = AW_create_local(&ctx.wr, "unit", 8);
+    AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 0);
+    r idx;
 }
 
 f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {

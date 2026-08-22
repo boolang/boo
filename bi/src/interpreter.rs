@@ -604,6 +604,17 @@ impl Interpreter {
                 }))
             },
         );
+
+        self.register_builtin(
+            "S_len",
+            vec![("string", "S")],
+            "I",
+            |_, arguments| {
+                Ok(Value::Int(
+                    arguments[0].value().as_string()?.len() as i128
+                ))
+            },
+        );
         self.register_builtin(
             "S_advance",
             vec![("string", "S"), ("offset", "I")],
@@ -706,6 +717,13 @@ impl Interpreter {
         self.register_builtin("I_u32_to_bytes", vec![("a", "I")], "S", |_, arguments| {
             Ok(Value::String(
                 (arguments[0].value().as_int()? as u32)
+                    .to_le_bytes()
+                    .to_vec(),
+            ))
+        });
+        self.register_builtin("I_i32_to_bytes", vec![("a", "I")], "S", |_, arguments| {
+            Ok(Value::String(
+                (arguments[0].value().as_int()? as i32)
                     .to_le_bytes()
                     .to_vec(),
             ))
