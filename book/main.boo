@@ -34,10 +34,10 @@ f next_token(input: S) -> TokenResult {
     )) {
         i (or(and(eq(acc[0], '/'), eq(acc[1], '/')))) {
             w (not(eq(acc[0], '\n'))) {
-                acc = advance(acc, 1);
+                acc = S_advance(acc, 1);
             }
         }
-        acc = advance(acc, 1);
+        acc = S_advance(acc, 1);
     }
 
     r Token { kind: Ident, content: input };

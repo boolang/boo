@@ -230,6 +230,7 @@ fn assignment(input: &mut TokenSlice<Token>) -> winnow::ModalResult<AssignmentSt
         place_expr,
         _: literal(TokenKind::Equals),
         expr,
+        _: literal(TokenKind::Semicolon),
     )
     .map(|(place, value)| AssignmentStmt { place, value })
     .parse_next(input)
