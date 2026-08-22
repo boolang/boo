@@ -125,8 +125,69 @@ f parse_type(input: S) -> Parse<I> {
     r Parse<I> { remainder: acc, value: 0 };
 }
 
+f parse_case_list(input: S) -> Parse<I> {
+    v acc = input;
+
+    v result = next_token(acc);
+    // Deliberately elided: acc = result.remainder;
+
+    w (y) {
+        result = next_token(acc);
+        print_token(result.value);
+        m (result.value) {
+            Token::CloseBrace => {
+                b;
+            }
+            Token::Comma => {
+                acc = result.remainder;
+                c;
+            }
+        }
+        parse_case(acc);
+    }
+
+    r Parse<I> { remainder: acc, value: 0 };
+}
+
+f parse_case(input: S) -> Parse<I> {
+    v acc = input;
+
+    v result = next_token(acc);
+    acc = result.remainder;
+
+    v name = "FIXME";
+    m (result.value) {
+        Token::Id(ident) => {
+            name = ident;
+        }
+    }
+
+    v result = next_token(acc);
+    m (result.value) {
+        Token::OpenPar => {
+            print("aa");
+        }
+    }
+
+    r Case { name: name, ty: name };
+}
+
 s Struct {
     ident: S,
+}
+
+s Case {
+    name: Ident,
+    ty: Type,
+}
+
+t Type {
+    Simple(SimpleType)
+}
+
+s SimpleType {
+    ident: Ident,
+    // generic_parameters: Vec<Type>,
 }
 
 s Parse<T> {
