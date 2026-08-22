@@ -23,6 +23,7 @@ pub enum LiteralExpr {
     Int(IntLiteral),
     Bool(BoolLiteral),
     String(StringLiteral),
+    Char(CharLiteral),
 }
 
 pub type IntLiteral = Rich<i128>;
@@ -30,6 +31,8 @@ pub type IntLiteral = Rich<i128>;
 pub type BoolLiteral = Rich<bool>;
 
 pub type StringLiteral = Rich<String>;
+
+pub type CharLiteral = Rich<char>;
 
 // MARK: Types
 

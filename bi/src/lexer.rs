@@ -218,7 +218,13 @@ fn string(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
             cut_err(escaped(
                 none_of(('\\', '"', '\u{80}'..)),
                 '\\',
-                alt(("\\".value("\\"), "\"".value("\""), "n".value("\n"))),
+                alt((
+                    "\\".value("\\"),
+                    "\"".value("\""),
+                    "n".value("\n"),
+                    "t".value("\t"),
+                    "r".value("\r"),
+                )),
             )),
             '"',
         ),

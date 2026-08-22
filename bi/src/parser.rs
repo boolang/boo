@@ -53,7 +53,7 @@ fn field_list(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Field>> 
 }
 
 fn field(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Field> {
-    seq!(ident, _: literal(TokenKind::Colon), r#type)
+    seq!(ident, _: cut_err(literal(TokenKind::Colon)), cut_err(r#type))
         .map(|(ident, ty)| Field { ident, ty })
         .parse_next(input)
 }
@@ -85,8 +85,8 @@ fn case(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Case> {
         seq!(
             ident,
             _: literal(TokenKind::OpenPar),
-            r#type,
-            _: literal(TokenKind::ClosePar)
+            cut_err(r#type),
+            _: cut_err(literal(TokenKind::ClosePar))
         )
         .map(|(ident, ty)| Case {
             ident,
@@ -306,6 +306,7 @@ fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> 
     alt((
         string_lit.map(LiteralExpr::String),
         int_lit.map(LiteralExpr::Int),
+        chr_lit.map(LiteralExpr::Char),
     ))
     .parse_next(input)
 }
@@ -410,6 +411,15 @@ fn int_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<i128>> {
                 value,
                 span: name[0].span,
             }
+        })
+        .parse_next(input)
+}
+
+fn chr_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<char>> {
+    literal(TokenKind::Char)
+        .map(|chr: &[Token]| Rich {
+            value: chr[0].value.chars().next().unwrap(),
+            span: chr[0].span,
         })
         .parse_next(input)
 }

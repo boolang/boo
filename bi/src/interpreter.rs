@@ -376,6 +376,15 @@ impl Interpreter {
         self.register_builtin("S_new_from_char", vec![("char", "C")], |arguments| {
             Ok(Value::String(arguments[0].as_char()?.to_string()))
         });
+        self.register_builtin(
+            "S_advance",
+            vec![("string", "S"), ("offset", "I")],
+            |arguments| {
+                Ok(Value::String(
+                    arguments[0].as_string()?[arguments[1].as_int()? as usize..].to_owned(),
+                ))
+            },
+        );
     }
 
     pub fn register_builtin<F: Fn(Vec<Value>) -> Result<Value> + 'static>(
@@ -727,6 +736,7 @@ impl Interpreter {
             LiteralExpr::Int(value) => Value::Int(value.value),
             LiteralExpr::Bool(value) => Value::Bool(value.value),
             LiteralExpr::String(value) => Value::String(value.value.clone()),
+            LiteralExpr::Char(value) => Value::Character(value.value),
         }
     }
 }
