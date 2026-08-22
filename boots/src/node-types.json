@@ -8,11 +8,11 @@
       "required": true,
       "types": [
         {
-          "type": "binding",
+          "type": "expression",
           "named": true
         },
         {
-          "type": "expression",
+          "type": "place_expr",
           "named": true
         }
       ]
@@ -352,6 +352,29 @@
         },
         {
           "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "place_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "place_expr",
           "named": true
         }
       ]

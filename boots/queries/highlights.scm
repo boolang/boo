@@ -2,7 +2,7 @@
 
 [ "=" "->" "=>" ] @punctuation
 [ "(" ")" "{" "}" "<" ">" "[" "]" ] @punctuation.bracket
-[ "," ";" ":" "::" ] @punctuation.delimiter
+[ "," ";" ":" "::" "." ] @punctuation.delimiter
 
 [ "-" "+" "*" "/" "%" "&" "|" ">>" "<<" "&&" "||" "==" "!=" "!" "~" ] @operator
 
@@ -11,7 +11,8 @@
 (struct_term (identifier) @variable)
 (enum_def (identifier) @type)
 (enum_term (identifier) @constructor)
-(assign_statement (binding) @variable)
+(place_expr (binding) @variable)
+(place_expr (identifier) @variable)
 (var_decl_statement (binding) @variable)
 (typed_var (binding) @variable)
 (pattern (identifier) @constructor)

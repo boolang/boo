@@ -531,7 +531,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "binding"
+          "name": "place_expr"
         },
         {
           "type": "STRING",
@@ -1332,6 +1332,32 @@
         {
           "type": "SYMBOL",
           "name": "type"
+        }
+      ]
+    },
+    "place_expr": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "binding"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "place_expr"
+            },
+            {
+              "type": "STRING",
+              "value": "."
+            },
+            {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
+          ]
         }
       ]
     },

@@ -113,7 +113,7 @@ export default grammar({
     ),
 
     assign_statement: $ => seq(
-      $.binding,
+      $.place_expr,
       '=',
       $.expression,
       ';',
@@ -208,6 +208,8 @@ export default grammar({
       ':',
       $.type,
     ),
+
+    place_expr: $ => choice($.binding, seq($.place_expr, '.', $.identifier)),
 
     binding: $ => $.identifier,
 
