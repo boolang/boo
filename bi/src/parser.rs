@@ -149,7 +149,7 @@ fn block(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Stmt>> {
 }
 
 fn stmt(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Stmt> {
-    // TODO
+    // TODO match
     trace(
         "stmt",
         alt((
@@ -304,7 +304,6 @@ fn expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Expr> {
 }
 
 fn place_expr(input: &mut TokenSlice<Token>) -> winnow::ModalResult<PlaceExpr> {
-    // TODO
     alt((
         separated(2.., ident, literal(TokenKind::Dot)).map(|lits: Vec<Rich<_>>| {
             let mut iter = lits.into_iter();
@@ -325,6 +324,7 @@ fn e_literal(input: &mut TokenSlice<Token>) -> winnow::ModalResult<LiteralExpr> 
         string_lit.map(LiteralExpr::String),
         int_lit.map(LiteralExpr::Int),
         chr_lit.map(LiteralExpr::Char),
+        bool_lit.map(LiteralExpr::Bool),
     ))
     .parse_next(input)
 }
@@ -417,13 +417,7 @@ fn string_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<String>
 fn int_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<i128>> {
     literal(TokenKind::Int)
         .map(|name: &[Token]| {
-            let (radix, num) = match name[0].value.get(..2) {
-                Some("0b") => (2, &name[0].value[2..]),
-                Some("0o") => (8, &name[0].value[2..]),
-                Some("0x") => (16, &name[0].value[2..]),
-                _ => (10, name[0].value.as_str()),
-            };
-            let value = i128::from_str_radix(num, radix)
+            let value = i128::from_str_radix(name[0].value.as_str(), 10)
                 .expect("Int already has been parsed and so should be valid.");
             Rich {
                 value,
@@ -440,6 +434,20 @@ fn chr_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<char>> {
             span: chr[0].span,
         })
         .parse_next(input)
+}
+
+fn bool_lit(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Rich<bool>> {
+    alt((
+        literal(TokenKind::KTrue).map(|bool: &[Token]| Rich {
+            value: true,
+            span: bool[0].span,
+        }),
+        literal(TokenKind::KFalse).map(|bool: &[Token]| Rich {
+            value: false,
+            span: bool[0].span,
+        }),
+    ))
+    .parse_next(input)
 }
 
 // Below reporting code taken more or less straight from winnow

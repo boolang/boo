@@ -50,6 +50,8 @@ pub enum TokenKind {
     Int,
     Char,
     String,
+    KTrue,
+    KFalse,
     KBreak,
     KContinue,
     KElse,
@@ -119,11 +121,13 @@ fn keyword(input: &mut LocatingSlice<&str>) -> winnow::ModalResult<Token> {
         "i" => empty.value(TokenKind::KIf),
         "l" => empty.value(TokenKind::KLet),
         "m" => empty.value(TokenKind::KMatch),
+        "n" => empty.value(TokenKind::KFalse),
         "r" => empty.value(TokenKind::KReturn),
         "s" => empty.value(TokenKind::KStruct),
         "t" => empty.value(TokenKind::KType),
         "v" => empty.value(TokenKind::KVar),
         "w" => empty.value(TokenKind::KWhile),
+        "y" => empty.value(TokenKind::KTrue),
         _ => empty.value(TokenKind::Id),
     }
     .with_taken()
