@@ -224,7 +224,7 @@ f lex_ident(input: S) -> Parse<S> {
     v acc = S_advance(input, 1);
     v ident = S_new_from_char(input[0]);
 
-    w (or(or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'Z')), and(C_ge(acc[0], 'Z'), C_le(acc[0], 'z'))), or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), C_eq(acc[0], '_')))) {
+    w (or(or(and(C_ge(acc[0], 'A'), C_le(acc[0], 'Z')), and(C_ge(acc[0], 'a'), C_le(acc[0], 'z'))), or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), C_eq(acc[0], '_')))) {
         ident = S_push(ident, acc[0]);
         acc = S_advance(acc, 1);
     }

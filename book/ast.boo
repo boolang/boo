@@ -55,20 +55,20 @@ t LiteralExpr {
 
 t Expr {
     Ident(S),
-    MemberAccess(Box<MemberAccessExpr>),
+    MemberAccess(MemberAccessExpr),
     Literal(LiteralExpr),
     FunctionCall(FunctionCallExpr),
     // Paren(Box<Expr>),
     StructInit(StructInitExpr),
-    EnumInit(Box<EnumInitExpr>),
-    Subscript(Box<SubscriptExpr>),
+    EnumInit(EnumInitExpr),
+    Subscript(SubscriptExpr),
 }
 
 // MARK: Place Expressions (assignment targets)
 
 t PlaceExpr {
     Ident(S),
-    Member(Box<MemberPlaceExpr>),
+    Member(MemberPlaceExpr),
 }
 
 s MemberPlaceExpr {
@@ -120,7 +120,7 @@ s WhileStmt {
 }
 
 s VarDecl {
-    mutable: bool,
+    mutable: B,
     ident: S,
     ty: O<Type>,
     value: O<Expr>,

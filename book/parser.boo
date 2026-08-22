@@ -99,14 +99,12 @@ f parse_block(input: S) -> Parse<V<Stmt>> {
             }
         }
         l stmt = parse_stmt(acc);
-        acc = field.rest;
+        acc = stmt.rest;
         V_push<Stmt>(&stmts, stmt.value);
     }
 
-    acc = next_token(acc).rest; // CloseBrace
-
 	dbg_print("< block");
-    r Parse<V<Stmt>> { rest: acc, value: fields };
+    r Parse<V<Stmt>> { rest: acc, value: stmts };
 }
 
 f parse_stmt(input: S) -> Parse<Stmt> {
@@ -135,37 +133,74 @@ f parse_stmt(input: S) -> Parse<Stmt> {
         }
         Token::KBreak => {
             acc = result.rest;
+            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Break };
         }
         Token::KContinue => {
             acc = result.rest;
+            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::Continue };
         }
         Token::KReturn => {
             acc = result.rest;
+
+            result = next_token(acc);
+            m (result.value) {
+                Token::Semicolon => {
+                	dbg_print("< stmt");
+                    r Parse<Stmt> { rest: acc, value: Stmt::Return(O_none<Expr>()) };
+                }
+            }
+
             l expr = parse_expr(acc);
             acc = expr.rest;
+            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
-            r Parse<Stmt> { rest: acc, value: Stmt::Return(expr.value) };
+            r Parse<Stmt> { rest: acc, value: Stmt::Return(O_some<Expr>(expr.value)) };
         }
         Token::KLet => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
+            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
         Token::KVar => {
             l decl = parse_var_decl(acc);
             acc = decl.rest;
+            acc = next_token(acc).rest; // Semicolon
         	dbg_print("< stmt");
             r Parse<Stmt> { rest: acc, value: Stmt::VarDecl(decl.value) };
         }
         _ => {
             l expr = parse_expr(acc);
-        	dbg_print("< stmt");
-            r Parse<Stmt> { rest: acc, value: Stmt::Expr(expr) };
+            acc = expr.rest;
+
+            result = next_token(acc);
+            acc = result.rest;
+            m (result.value) {
+                Token::Equals => {
+                    l value = parse_expr(acc);
+                    acc = value.rest;
+
+                    acc = next_token(acc).rest; // Semicolon
+
+                	dbg_print("< stmt");
+                    r Parse<Stmt> {
+                        rest: acc,
+                        value: Stmt::Assignment(AssignmentStmt {
+                            place: expr_to_place(expr.value),
+                            value: value.value
+                        })
+                    };
+                }
+                Token::Semicolon => {
+                	dbg_print("< stmt");
+                    r Parse<Stmt> { rest: acc, value: Stmt::Expr(expr.value) };
+                }
+            }
         }
     }
 }
@@ -207,6 +242,7 @@ f parse_if(input: S) -> Parse<IfStmt> {
                 else_block = O_some<ElseBlock>(ElseBlock { stmts: else_body.value });
             }
         }
+        b;
     }
     
     dbg_print("< if");
@@ -226,9 +262,10 @@ f parse_while(input: S) -> Parse<WhileStmt> {
     acc = next_token(acc).rest; // ClosePar;
     
     l body = parse_block(acc);
+    acc = body.rest;
     
     dbg_print("< while");
-    r Parse<While> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
+    r Parse<WhileStmt> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
 }
 
 f parse_var_decl(input: S) -> Parse<VarDecl> {
@@ -255,7 +292,7 @@ f parse_var_decl(input: S) -> Parse<VarDecl> {
     acc = next_token(acc).rest; // Semicolon
     
     dbg_print("< var_decl");
-    r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: O_none<Type>(), value: expr } };
+    r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: O_none<Type>(), value: O_some<Expr>(expr.value) } };
 }
 
 f parse_expr(input: S) -> Parse<Expr> {
@@ -263,27 +300,93 @@ f parse_expr(input: S) -> Parse<Expr> {
     dbg_print("> expr");
 
     v result = next_token(acc);
+    acc = result.rest;
     m (result.value) {
-        TokenKind::Int(int) => {
+        Token::Int(int) => {
             dbg_print("< expr");
-            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::IntLiteral(int)) };
+            r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Int(int)) };
         }
-        TokenKind::String(string) => {
+        Token::String(string) => {
             dbg_print("< expr");
-            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::StringLiteral(string)) };
+            r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::String(string)) };
         }
-        TokenKind::Char(char) => {
+        Token::Char(char) => {
             dbg_print("< expr");
-            r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::CharLiteral(char)) };
+            r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Char(char)) };
         }
-        TokenKind::Ident(ident) => {
+        Token::Id(ident) => {
             i (S_eq(ident, "y")) {
                 dbg_print("< expr");
-                r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::BoolLiteral(y)) };
+                r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Bool(y)) };
             } e i (S_eq(ident, "n")) {
                 dbg_print("< expr");
-                r Parse<Expr> { rest: acc, value: Expr::LiteralExpr(LiteralExpr::BoolLiteral(n)) };
+                r Parse<Expr> { rest: acc, value: Expr::Literal(LiteralExpr::Bool(n)) };
             }
+
+            v expr = Expr::Ident(ident);
+            result = next_token(acc);
+            m (result.value) {
+                Token::Less => {
+                    acc = result.rest;
+
+                    l generics = parse_generic_args(acc);
+                    acc = generics.rest;
+
+                    acc = next_token(acc).rest; // Greater
+                    acc = next_token(acc).rest; // OpenPar
+
+                    l args = parse_arg_list(acc);
+                    acc = args.rest;
+
+                    acc = next_token(acc).rest; // ClosePar
+
+                    expr = Expr::FunctionCall(FunctionCallExpr {
+                        ident: ident,
+                        generic_parameters: generics.value,
+                        arguments: args.value
+                    });
+                }
+                Token::OpenPar => {
+                    acc = result.rest;
+
+                    l args = parse_arg_list(acc);
+                    acc = args.rest;
+
+                    acc = next_token(acc).rest; // ClosePar
+
+                    expr = Expr::FunctionCall(FunctionCallExpr {
+                        ident: ident,
+                        generic_parameters: V_new<Type>(),
+                        arguments: args.value
+                    });
+                }
+            }
+
+            result = next_token(acc);
+            w (y) {
+                m (result.value) {
+                    Token::OpenBracket => {
+                        acc = result.rest;
+
+                        l subscript = parse_expr(acc);
+                        acc = subscript.rest;
+
+                        acc = next_token(acc).rest; // CloseBracket
+
+                        expr = Expr::Subscript(SubscriptExpr {
+                            base: expr,
+                            index: subscript.value
+                        });
+
+                        result = next_token(acc);
+                        c;
+                    }
+                }
+                b;
+            }
+
+            dbg_print("< expr");
+            r Parse<Expr> { rest: acc, value: expr };
         }
     }
 }
@@ -317,6 +420,46 @@ f parse_param_list(input: S) -> Parse<V<Parameter>> {
     r Parse<V<Parameter>> { rest: acc, value: fields };
 }
 
+f parse_arg_list(input: S) -> Parse<V<ArgumentValue>> {
+    v acc = input;
+	dbg_print("> arg_list");
+
+    v result = next_token(acc);
+    // Deliberately elided: acc = result.rest;
+
+    v fields = V_new<ArgumentValue>();
+    v mutable = n;
+
+    w (y) {
+        result = next_token(acc);
+        m (result.value) {
+            Token::ClosePar => {
+                b;
+            }
+            Token::Comma => {
+                acc = result.rest;
+                c;
+            }
+            Token::Ampersand => {
+                mutable = y;
+                acc = result.rest;
+                c;
+            }
+        }
+        l field = parse_expr(acc);
+        acc = field.rest;
+        i (mutable) {
+            V_push<ArgumentValue>(&fields, ArgumentValue::Mutable(expr_to_place(field.value)));
+        } e {
+            V_push<ArgumentValue>(&fields, ArgumentValue::Immutable(field.value));
+        }
+        mutable = n;
+    }
+
+	dbg_print("< arg_list");
+    r Parse<V<ArgumentValue>> { rest: acc, value: fields };
+}
+
 f parse_param(input: S) -> Parse<Parameter> {
     v acc = input;
 	dbg_print("> param");
@@ -343,6 +486,20 @@ f parse_param(input: S) -> Parse<Parameter> {
         rest: acc,
         value: Parameter { label: ident.value, ty: ArgumentType { ty: type.value, mutable: mutable } }
     };
+}
+
+f expr_to_place(expr: Expr) -> PlaceExpr {
+    m (expr) {
+        Expr::Ident(ident) => {
+            r PlaceExpr::Ident(ident);
+        }
+        Expr::MemberAccess(access) => {
+            r PlaceExpr::Member(MemberPlaceExpr {
+                base: expr_to_place(access.base),
+                member: access.member
+            });
+        }
+    }
 }
 
 // MARK: Types

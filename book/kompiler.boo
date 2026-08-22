@@ -84,7 +84,7 @@ f exit() {
 
 f kompile_fn_call(ctx: Ctx, call: FunctionCallExpr) {
     l maybe_fn = Map_get<Function>(ctx.fns, call.ident);
-    l fn: Function;
+    // l fn: Function;
     i (O_is_none<Function>(maybe_fn)) {
         print("No such function");
         print(call.ident);
