@@ -144,6 +144,7 @@ f parse_stmt(input: S) -> Parse<Stmt> {
             r Parse<Stmt> { rest: acc, value: Stmt::Continue };
         }
         Token::KReturn => {
+            acc = result.rest;
             l expr = parse_expr(acc);
             acc = expr.rest;
         	dbg_print("< stmt");
@@ -167,6 +168,104 @@ f parse_stmt(input: S) -> Parse<Stmt> {
             r Parse<Stmt> { rest: acc, value: Stmt::Expr(expr) };
         }
     }
+}
+
+f parse_if(input: S) -> Parse<IfStmt> {
+    v acc = input;
+    dbg_print("> if");
+
+    v if_bodies = V_new<IfBlock>();
+    v else_block = O_none<ElseBlock>();
+
+    w (y) {
+        acc = next_token(acc).rest; // Kif;
+        acc = next_token(acc).rest; // OpenPar;
+
+        l cond = parse_expr(acc);
+        acc = cond.rest;
+
+        acc = next_token(acc).rest; // ClosePar;
+    
+        l body = parse_block(acc);
+        acc = body.rest;
+
+        V_push<IfBlock>(&if_bodies, IfBlock { condition: cond.value, stmts: body.value });
+
+        v result = next_token(acc);
+        m (result.value) {
+            Token::KElse => {
+                acc = result.rest;
+                result = next_token(acc);
+                m (result.value) {
+                    Token::KIf => {
+                        c;
+                    }
+                }
+                l else_body = parse_block(acc);
+                acc = else_body.rest;
+
+                else_block = O_some<ElseBlock>(ElseBlock { stmts: else_body.value });
+            }
+        }
+    }
+    
+    dbg_print("< if");
+    r Parse<IfStmt> { rest: acc, value: IfStmt { if_blocks: if_bodies, else_block: else_block } };
+}
+
+f parse_while(input: S) -> Parse<WhileStmt> {
+    v acc = input;
+    dbg_print("> while");
+
+    acc = next_token(acc).rest; // KWhile;
+    acc = next_token(acc).rest; // OpenPar;
+
+    l cond = parse_expr(acc);
+    acc = cond.rest;
+
+    acc = next_token(acc).rest; // ClosePar;
+    
+    l body = parse_block(acc);
+    
+    dbg_print("< while");
+    r Parse<While> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
+}
+
+f parse_var_decl(input: S) -> Parse<VarDecl> {
+    v acc = input;
+    dbg_print("> var_decl");
+
+    v mutable = n;
+    v result = next_token(acc);
+    m (result.value) {
+        Token::KVar => {
+            mutable = y;
+        }
+    }
+    acc = result.rest;
+
+    l ident = parse_ident(acc);
+    acc = ident.rest;
+
+    acc = next_token(acc).rest; // Equals
+
+    l expr = parse_expr(acc);
+    acc = expr.rest;
+    
+    acc = next_token(acc).rest; // Semicolon
+    
+    dbg_print("< var_decl");
+    r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: O_none<Type>(), value: expr } };
+}
+
+f parse_expr(input: S) -> Parse<Expr> {
+    v acc = input;
+    dbg_print("> expr");
+
+    v result = next_token(acc);
+    
+    dbg_print("< expr");
+    r Parse<While> { rest: acc, value: WhileStmt { condition: cond.value, stmts: body.value } };
 }
 
 f parse_param_list(input: S) -> Parse<V<Parameter>> {

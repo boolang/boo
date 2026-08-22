@@ -169,9 +169,6 @@ f lex_token(input: S) -> Parse<Token> {
         } e {
             r Parse<Token> { rest: result.rest, value: Token::Id(ident) };
         }
-    } e i (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(C_eq(acc[0], '-'), C_eq(acc[0], '+')))) {
-        l result = lex_number(acc);
-        r Parse<Token> { rest: result.rest, value: Token::Int(result.value) };
     } e i (C_eq(acc[0], '"')) {
         l result = lex_string(acc);
         r Parse<Token> { rest: result.rest, value: Token::String(result.value) };
@@ -214,6 +211,9 @@ f lex_token(input: S) -> Parse<Token> {
         r Parse<Token> { rest: S_advance(acc, 1), value: Token::Greater };
     } e i (C_eq(acc[0], '&')) {
         r Parse<Token> { rest: S_advance(acc, 1), value: Token::Ampersand };
+    } e i (or(and(C_ge(acc[0], '0'), C_le(acc[0], '9')), or(C_eq(acc[0], '-'), C_eq(acc[0], '+')))) {
+        l result = lex_number(acc);
+        r Parse<Token> { rest: result.rest, value: Token::Int(result.value) };
     }
 
     print("oops");
