@@ -124,12 +124,18 @@ fn arguments(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Vec<Parameter
     separated(0.., argument, literal(TokenKind::Comma)).parse_next(input)
 }
 
+fn argument_type(input: &mut TokenSlice<Token>) -> winnow::ModalResult<ArgumentType> {
+    alt((
+        preceded(literal(TokenKind::Ampersand), r#type)
+            .map(|ty| ArgumentType { ty, mutable: true }),
+        r#type.map(|ty| ArgumentType { ty, mutable: false }),
+    ))
+    .parse_next(input)
+}
+
 fn argument(input: &mut TokenSlice<Token>) -> winnow::ModalResult<Parameter> {
-    seq!(ident, _: literal(TokenKind::Colon), r#type)
-        .map(|(label, ty)| Parameter {
-            label,
-            ty: ArgumentType { ty, mutable: false },
-        })
+    seq!(ident, _: literal(TokenKind::Colon), argument_type)
+        .map(|(label, ty)| Parameter { label, ty })
         .parse_next(input)
 }
 

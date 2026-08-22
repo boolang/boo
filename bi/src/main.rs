@@ -4,7 +4,7 @@ use crate::ast::{
     FunctionSignature, Ident, LiteralExpr, MemberAccessExpr, MemberPlaceExpr, PlaceExpr, Rich,
     SimpleType, Stmt, Struct, StructInitArgument, StructInitExpr, SubscriptExpr, Type, VarDecl,
 };
-use crate::interpreter::{Interpreter, Value};
+use crate::interpreter::Interpreter;
 use crate::lexer::tokenise;
 use crate::parser::{parse, print_parse_error};
 
