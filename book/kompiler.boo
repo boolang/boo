@@ -244,6 +244,30 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                         size: 8
                     };
                 }
+                LiteralExpr::Bool(bool) => {
+                    l idx = AW_create_local(&ctx.wr, "tmp_bool_lit", 8);
+                    i (bool) {
+                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 1);
+                    } e {
+                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 0);
+                    }
+                    l type = Type { ident: "B", generic_parameters: V_new<Type>() };
+                    r ExprResult {
+                        local: idx,
+                        type: type,
+                        size: 8
+                    };
+                }
+                LiteralExpr::Char(char) => {
+                    l idx = AW_create_local(&ctx.wr, "tmp_char_lit", 8);
+                    AW_mov_constant_int_to_local(&ctx.wr, idx, 0, C_ord(char));
+                    l type = Type { ident: "C", generic_parameters: V_new<Type>() };
+                    r ExprResult {
+                        local: idx,
+                        type: type,
+                        size: 8
+                    };
+                }
                 _ => {
                     print("Non-integer literals not supported");
                     exit();
