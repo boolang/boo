@@ -135,6 +135,29 @@
     }
   },
   {
+    "type": "enum_init",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "enum_term",
     "named": true,
     "fields": {},
@@ -170,6 +193,10 @@
           "named": true
         },
         {
+          "type": "enum_init",
+          "named": true
+        },
+        {
           "type": "expression",
           "named": true
         },
@@ -191,10 +218,6 @@
         },
         {
           "type": "subscript",
-          "named": true
-        },
-        {
-          "type": "turbo",
           "named": true
         },
         {
@@ -352,6 +375,10 @@
         },
         {
           "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "type",
           "named": true
         }
       ]
@@ -556,25 +583,6 @@
       "types": [
         {
           "type": "expression",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "turbo",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "type",
           "named": true
         }
       ]

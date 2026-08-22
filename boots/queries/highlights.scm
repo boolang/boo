@@ -21,8 +21,9 @@
 (expression (identifier) @variable)
 (member_access (identifier) @variable)
 (struct_init_arg (identifier) @variable)
-(turbo (identifier) @constructor)
+(enum_init (identifier) @constructor)
 (type (identifier) @type)
 (string) @string
+(char) @string
 (number) @number
 (comment) @comment

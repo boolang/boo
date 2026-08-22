@@ -144,7 +144,7 @@ export default grammar({
       $.member_access,
       $.subscript,
       $.struct_init,
-      $.turbo,
+      $.enum_init,
     ),
 
     literal: $ => choice(
@@ -178,13 +178,13 @@ export default grammar({
       prec.left(20, seq($.expression, "%", $.expression)),
     ),
 
-    call: $ => seq(
+    call: $ => prec(-1, seq(
       $.identifier,
       optional($.generics),
       '(',
       $.expression, repeat(seq(',', $.expression)),
       ')',
-    ),
+    )),
 
     member_access: $ => prec.left(0, seq($.expression, '.', $.identifier)),
 
@@ -196,11 +196,11 @@ export default grammar({
 
     struct_init_arg: $ => seq($.identifier, ':', $.expression),
 
-    turbo: $ => seq($.type, '::', $.identifier),
+    enum_init: $ => prec.left(-1, seq($.identifier, '::', $.expression, optional(seq('(', $.binding, ')')))),
 
     pattern: $ => choice(
-      $.identifier,
-      seq($.identifier, '(', $.binding, ')'),
+      seq($.type, '::', $.identifier),
+      seq($.type, '::', $.identifier, '(', $.binding, ')'),
     ),
 
     typed_var: $ => seq(
@@ -219,7 +219,7 @@ export default grammar({
     ),
 
     string: $ => /\"([^\"]|\\\")*\"/,
-    char: $ => /\'([^']|\\\')\'/,
+    char: $ => /\'([^'nrt]|\\\'|\\n|\\r|\\t)\'/,
 
     number: $ => /([1-9][0-9]*)|0/,
 
