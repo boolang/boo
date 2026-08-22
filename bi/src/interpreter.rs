@@ -24,6 +24,7 @@ pub enum Value {
     Int(i128),
     Bool(bool),
     String(String),
+    Character(char),
     Unit,
     Struct(StructValue),
 }
@@ -41,6 +42,7 @@ impl Value {
             Value::Int(_) => simple_type("I"),
             Value::Bool(_) => simple_type("B"),
             Value::String(_) => simple_type("S"),
+            Value::Character(_) => simple_type("C"),
             Value::Unit => simple_type("U"),
             Value::Struct(value) => value.ty(),
         }
@@ -50,6 +52,27 @@ impl Value {
         match &self {
             Value::String(value) => Ok(value.clone()),
             _ => Err(anyhow!("Expected S, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_int(&self) -> Result<i128> {
+        match &self {
+            Value::Int(value) => Ok(*value),
+            _ => Err(anyhow!("Expected I, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_bool(&self) -> Result<bool> {
+        match &self {
+            Value::Bool(value) => Ok(*value),
+            _ => Err(anyhow!("Expected B, got {}", self.infer_type())),
+        }
+    }
+
+    pub fn as_char(&self) -> Result<char> {
+        match &self {
+            Value::Character(value) => Ok(*value),
+            _ => Err(anyhow!("Expected C, got {}", self.infer_type())),
         }
     }
 
@@ -526,6 +549,24 @@ impl Interpreter {
                         member_access.member.value
                     )),
                 }
+            }
+            Expr::Subscript(subscript) => {
+                let base_value = self.eval_expr(&subscript.base)?;
+                let string = base_value.as_string()?;
+                let index_value = self.eval_expr(&subscript.index)?;
+                let index = index_value.as_int()?;
+
+                if index < 0 || index as usize >= string.len() {
+                    return Err(anyhow!(
+                        "Index {} out of bounds for string of length {}",
+                        index,
+                        string.len()
+                    ));
+                }
+
+                Ok(Value::Character(
+                    string.chars().nth(index as usize).unwrap(),
+                ))
             }
         }
     }

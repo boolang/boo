@@ -1,6 +1,7 @@
 ## Features
 
 - Subscripts for strings
+- Generics
 - Array standard library functions
 - Way to get length of string
 - Way for function to take mutable borrow of value (for 'methods' that have to mutate 'self')

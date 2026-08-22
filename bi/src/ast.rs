@@ -80,6 +80,12 @@ pub struct MemberAccessExpr {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct SubscriptExpr {
+    pub base: Expr,
+    pub index: Expr,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expr {
     Ident(Ident),
     MemberAccess(Box<MemberAccessExpr>),
@@ -87,6 +93,7 @@ pub enum Expr {
     FunctionCall(FunctionCallExpr),
     Paren(Box<Rich<Expr>>),
     StructInit(StructInitExpr),
+    Subscript(Box<SubscriptExpr>),
 }
 
 // MARK: Place Expressions (assignment targets)
