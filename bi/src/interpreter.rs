@@ -685,9 +685,7 @@ impl Interpreter {
 
         self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
             Ok(Value::String(
-                std::fs::read_to_string(arguments[0].value().as_rs_string()?)
-                    .unwrap()
-                    .into_bytes(),
+                std::fs::read(arguments[0].value().as_rs_string()?).unwrap(),
             ))
         });
 

@@ -1,20 +1,44 @@
 s BuiltinFunction {
-    parameters: V<Parameter>,
+    params: V<Parameter>,
     asm: S
 }
 
 s Ctx {
     structs: Map<Struct>,
     enums: Map<Enum>,
-    fns: Map<Function>
+    fns: Map<Function>,
+    builtin_fns: Map<BuiltinFunction>
+}
+
+f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
+    l asm = read(S_concat("builtins/", ident));
+    l builtin = BuiltinFunction {
+        params: params,
+        asm: asm
+    };
+    Map_insert<BuiltinFunction>(&ctx.builtin_fns, ident, builtin);
 }
 
 f kompile(ast: Ast) {
     v ctx = Ctx {
         structs: Map_new<Struct>(),
         enums: Map_new<Enum>(),
-        fns: Map_new<Function>()
+        fns: Map_new<Function>(),
+        builtin_fns: Map_new<BuiltinFunction>()
     };
+
+    v exit_params = V_new<Parameter>();
+    V_push<Parameter>(&exit_params, Parameter {
+        label: "status",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "exit", exit_params);
 
     v idx = 0;
     w (I_lt(idx, V_len<Decl>(ast.decls))) {
