@@ -112,7 +112,8 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
     v offset = 0;
     l local_count = V_len<Local>(wr.locals);
     i (I_gt(local_count, 0)) {
-        offset = V_get<Local>(wr.locals, I_sub(local_count, 1)).offset;
+        l last_var = V_get<Local>(wr.locals, I_sub(local_count, 1));
+        offset = I_add(last_var.offset, last_var.size);
     }
     l local = Local {
         name: name,
@@ -193,6 +194,15 @@ f AW_expand_stack(wr: &AsmWriter, sz: I) {
 
 f AW_shrink_stack(wr: &AsmWriter, sz: I) {
     // Instructions to shrink stack
+    v code = "";
+    v idx = 0;
+    // 0:  58      pop rax
+    // repeated sz times
+    w (I_lt(I_mul(idx, 8), sz)) {
+        code = S_push(code, I_chr(0x58));
+        idx = I_add(idx, 1);
+    }
+    AW_write(&wr, code);
 }
 
 // Pushes to the vector under the given key. If the map doesn't

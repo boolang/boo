@@ -27,6 +27,7 @@ f Q_contains_string(queue: Q<S>, element: S) -> B {
 		i (S_eq(element, V_get<S>(queue.queue, idx))) {
 			r y;
 		}
+        idx = I_add(idx, 1);
 	}
 	r n;
 }

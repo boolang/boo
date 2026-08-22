@@ -341,6 +341,7 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
 
     l nargs = V_len<ArgumentValue>(call.arguments);
     AW_shrink_stack(&ctx.wr, I_mul(8, nargs));
+    print("meow");
 }
 
 f queue_fn(ctx: &Ctx, fn: MMKey) {

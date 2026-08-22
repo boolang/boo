@@ -6,5 +6,3 @@ add rdx, [rsi];
 mov rsi, [rsp + 8];
 mov [rsi], rdx;
 ret;
-mov rax, 12345;
-call rax;
