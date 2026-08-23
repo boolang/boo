@@ -6,11 +6,12 @@
     mov rsi, [rdi + 8];
     mov rdi, [rsp + 16];
     add rsi, [rdi + 8];
-    mov r9, rsi;
+    mov r11, rsi;
     ; malloc(first.size + second.size)
-    mov rdi, r9;
+    mov rdi, r11;
     mov rax, 0x400000;
     call rax;
+    mov r9, r11;
     mov r10, rax;
     ; malloc(10) for the new string
     mov rdi, 0x10;

@@ -7,3 +7,8 @@ nasm malloc.S
 nasm make_str.S
 nasm S_concat.S
 nasm S_len.S
+nasm V_new.S
+nasm V_push.S
+nasm V_len.S
+nasm V_get.S
+nasm V_set.S

@@ -171,6 +171,102 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "S_len", s_len_params);
+
+    // vec ops
+    v v_new_params = V_new<Parameter>();
+    Ctx_load_builtin(&ctx, "V_new", v_new_params);
+
+    v v_push_params = V_new<Parameter>();
+    V_push<Parameter>(&v_push_params, Parameter {
+        label: "vec",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "V",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: y
+        }
+    });
+    V_push<Parameter>(&v_push_params, Parameter {
+        label: "element",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I", // TODO should be T but oh well
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "V_push", v_push_params);
+
+    v v_len_params = V_new<Parameter>();
+    V_push<Parameter>(&v_len_params, Parameter {
+        label: "vec",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "V",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: y
+        }
+    });
+    Ctx_load_builtin(&ctx, "V_len", v_len_params);
+
+    v v_get_params = V_new<Parameter>();
+    V_push<Parameter>(&v_get_params, Parameter {
+        label: "vec",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "V",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: y
+        }
+    });
+    V_push<Parameter>(&v_get_params, Parameter {
+        label: "idx",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "V_get", v_get_params);
+
+    v v_set_params = V_new<Parameter>();
+    V_push<Parameter>(&v_set_params, Parameter {
+        label: "vec",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "V",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: y
+        }
+    });
+    V_push<Parameter>(&v_set_params, Parameter {
+        label: "idx",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&v_set_params, Parameter {
+        label: "new_value",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I", // TODO should be T but oh well
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "V_set", v_set_params);
 }
 
 f kompile(ast: Ast) {
