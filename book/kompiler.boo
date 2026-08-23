@@ -70,6 +70,19 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "I_eq", i_eq_params);
+
+    v malloc_params = V_new<Parameter>();
+    V_push<Parameter>(&malloc_params, Parameter {
+        label: "size",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "malloc", malloc_params);
 }
 
 f kompile(ast: Ast) {
@@ -341,7 +354,6 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
 
     l nargs = V_len<ArgumentValue>(call.arguments);
     AW_shrink_stack(&ctx.wr, I_mul(8, nargs));
-    print("meow");
 }
 
 f queue_fn(ctx: &Ctx, fn: MMKey) {
