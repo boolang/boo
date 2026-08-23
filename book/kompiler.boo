@@ -502,8 +502,8 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
         Expr::Literal(literal) => {
             m (literal) {
                 LiteralExpr::Int(int) => {
-                    l idx = AW_create_local(&ctx.wr, "tmp_int_lit", 8);
-                    AW_mov_constant_int_to_local(&ctx.wr, idx, int);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8);
+                    AW_mov_constant_int_to_heap_local(&ctx.wr, idx, int);
                     l type = Type_new("I");
                     r ExprResult {
                         local: idx,
@@ -512,11 +512,11 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                     };
                 }
                 LiteralExpr::Bool(bool) => {
-                    l idx = AW_create_local(&ctx.wr, "tmp_bool_lit", 8);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_bool_lit", 8);
                     i (bool) {
-                        AW_mov_constant_int_to_local(&ctx.wr, idx, 1);
+                        AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 1);
                     } e {
-                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0);
+                        AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 0);
                     }
                     l type = Type_new("B");
                     r ExprResult {
@@ -526,8 +526,8 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                     };
                 }
                 LiteralExpr::Char(char) => {
-                    l idx = AW_create_local(&ctx.wr, "tmp_char_lit", 8);
-                    AW_mov_constant_int_to_local(&ctx.wr, idx, C_ord(char));
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8);
+                    AW_mov_constant_int_to_heap_local(&ctx.wr, idx, C_ord(char));
                     l type = Type_new("C");
                     r ExprResult {
                         local: idx,

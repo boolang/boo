@@ -124,6 +124,13 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
     r local_count;
 }
 
+f AW_create_heap_local(wr: &AsmWriter, name: S, size: I) -> I {
+    l idx = AW_create_local(&wr, name, 8);
+    AW_malloc(&wr, size);
+    AW_mov_rax_to_local(&wr, idx);
+    r idx;
+}
+
 f AW_local_rbp_offset(wr: AsmWriter, local_idx: I, offset: I) -> I {
     l var = V_get<Local>(wr.locals, local_idx);
     // RBP addressing is backwards, which makes this a bit weird
@@ -139,6 +146,33 @@ f AW_mov_constant_int_to_local(wr: &AsmWriter, dst_idx: I, value: I) {
     AW_write(&wr, code);
 
     AW_mov_rax_to_local(&wr, dst_idx);
+}
+
+f AW_mov_constant_int_to_heap_local(wr: &AsmWriter, dst_idx: I, value: I) {
+    // Write a constant value to an offset within a stack variable
+    //  0:   48 b8 67 67 67 67 67    movabs $0x6767676767676767,%rax
+    //  7:   67 67 67
+    v code = I_u16_to_bytes(0xb848);
+    code = S_concat(code, I_u64_to_bytes(value));
+    AW_write(&wr, code);
+
+    AW_mov_local_to_rbx(&wr, dst_idx);
+    AW_mov_rax_to_rbx_ptr(&wr);
+}
+
+f AW_mov_rax_to_rbx_ptr(wr: &AsmWriter) {
+    //  0:   48 89 03                mov    %rax,(%rbx)
+    l code = S_push(I_u16_to_bytes(0x8948), I_chr(0x03));
+    AW_write(&wr, code);
+}
+
+f AW_mov_local_to_rbx(wr: &AsmWriter, local_idx: I) {
+    //  0:   48 8b 9d 99 98 ff ff    mov    -0x6767(%rbp),%rbx
+    l offset = AW_local_rbp_offset(wr, local_idx, 0);
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x9d));
+    code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
+    AW_write(&wr, code);
 }
 
 f AW_mov_rax_to_local(wr: &AsmWriter, dst_idx: I) {
@@ -165,6 +199,13 @@ f AW_write_mov_rsi(wr: &AsmWriter, value: I) {
     //  0:   48 be 67 67 67 67 67    movabs $0x6767676767676767,%rsi
     //  7:   67 67 67
     l code = S_concat(I_u16_to_bytes(0xbe48), I_u64_to_bytes(value));
+    AW_write(&wr, code);
+}
+
+f AW_write_mov_rdi(wr: &AsmWriter, value: I) {
+    //  0:   48 bf 67 67 67 67 67    movabs $0x6767676767676767,%rdi
+    //  7:   67 67 67
+    l code = S_concat(I_u16_to_bytes(0xbf48), I_u64_to_bytes(value));
     AW_write(&wr, code);
 }
 
@@ -268,6 +309,11 @@ f AW_shrink_stack(wr: &AsmWriter, sz: I) {
         idx = I_add(idx, 1);
     }
     AW_write(&wr, code);
+}
+
+f AW_malloc(wr: &AsmWriter, sz: I) {
+    AW_write_mov_rdi(&wr, sz);
+    AW_call(&wr, MMKey_new("malloc"));
 }
 
 // Pushes to the vector under the given key. If the map doesn't
