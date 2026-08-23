@@ -146,7 +146,7 @@ f AW_mov_rax_to_local(wr: &AsmWriter, dst_idx: I) {
     l offset = AW_local_rbp_offset(wr, dst_idx, 0);
     v code = I_u16_to_bytes(0x8948);
     code = S_push(code, I_chr(0x85));
-    code = S_concat(code, I_u32_to_bytes(offset));
+    code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
     AW_write(&wr, code);
 }
 
@@ -155,7 +155,7 @@ f AW_str_literal_to_rdi(wr: &AsmWriter, literal: S) {
     // 7:   e9 00 01 00 00          jmp    0x10c
 
     v code = I_u32_to_bytes(0x053d8d48);
-    code = S_concat(code, I_u32_to_bytes(0xe9));
+    code = S_concat(code, I_u32_to_bytes(0xe9000000));
     code = S_concat(code, I_u32_to_bytes(S_len(literal)));
     code = S_concat(code, literal);
     AW_write(&wr, code);
@@ -236,16 +236,21 @@ f AW_overwrite_jump(wr: &AsmWriter, instr: I, dst_offset: I) {
     S_set_range(&wr.buf, instr, I_u32_to_bytes(addr));
 }
 
+f AW_mov_local_to_rax(wr: &AsmWriter, local_idx: I) {
+    //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
+    l offset = AW_local_rbp_offset(wr, local_idx, 0);
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x85));
+    code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
+    AW_write(&wr, code);
+}
+
 f AW_push_argument_ptr(wr: &AsmWriter, local_idx: I) {
     // Push address to local onto stack as a function argument
-    l offset = AW_local_rbp_offset(wr, local_idx, 0);
 
-    //  0:   48 8d 85 67 67 00 00    lea    0x6767(%rbp),%rax
     //  7:   50                      push   %rax
-    v code = S_push(I_u16_to_bytes(0x8d48), I_chr(0x85));
-    code = S_concat(code, I_i32_to_bytes(offset));
-    code = S_push(code, I_chr(0x50));
-    AW_write(&wr, code);
+    AW_mov_local_to_rax(&wr, local_idx);
+    AW_write(&wr, S_new_from_char(I_chr(0x50)));
 }
 
 f AW_expand_stack(wr: &AsmWriter, sz: I) {

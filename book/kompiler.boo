@@ -50,6 +50,9 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     });
     Ctx_load_builtin(&ctx, "malloc", malloc_params);
 
+    l empty_params = V_new<Parameter>();
+    Ctx_load_builtin(&ctx, "make_str", empty_params);
+
     v exit_params = V_new<Parameter>();
     V_push<Parameter>(&exit_params, Parameter {
         label: "status",
