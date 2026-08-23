@@ -1,2 +1,2 @@
 [BITS 64]
-jmp 0xdeadbeef
+mov rax, [rbp-]

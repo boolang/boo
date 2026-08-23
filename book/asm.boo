@@ -105,6 +105,21 @@ f AW_finalize_function(wr: &AsmWriter) {
     //  0:   c9                      leave
     //  1:   c3                      ret
     AW_write(&wr, I_u16_to_bytes(0xc3c9));
+
+    wr.locals = V_new<Local>();
+}
+
+f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {
+    // Add to locals and return the local index
+    l local = AW_create_local(&wr, name, size);
+    //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
+    l offset = I_mul(idx, 8);
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x85));
+    code = S_concat(code, I_i32_to_bytes(offset));
+    AW_write(&wr, code);
+    AW_mov_rax_to_local(&wr, local);
+    r local;
 }
 
 f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
@@ -262,10 +277,11 @@ f AW_create_overwritable_jump(wr: &AsmWriter) -> I {
     r offset;
 }
 
-f AW_create_overwritable_jz(wr: &AsmWriter) -> I {
+f AW_create_overwritable_jz(wr: &AsmWriter, local_idx: I) -> I {
     // Emit a dummy jump-if-rax-is-zero and return the index of an overwriteable jump offset
     // ba ef be ad de 80 38 00 75 02 ff e2 (cmp [rax], 0)
     // ba ef be ad de 48 83 f8 00 75 02 ff e2 (cmp rax, 0)
+    AW_mov_local_to_rax(&wr, local_idx);
     l offset = I_add(AW_idx(wr), 1);
     l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
     AW_write(&wr, code);

@@ -15,11 +15,17 @@ s FunctionInstance {
     stmts: V<Stmt>,
 }
 
+s LocalVar {
+    local: I,
+    type: Type,
+}
+
 s Ctx {
     structs: Map<Struct>,
     enums: Map<Enum>,
     fns: Map<Function>,
     fn_q: Q<S>,
+    locals: Map<Local>,
     loop_breaks: V<I>,
     loop_continue: I,
     builtin_fns: Map<BuiltinFunction>,
@@ -275,6 +281,7 @@ f kompile(ast: Ast) {
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
         fn_q: Q_new<MMKey>(),
+        locals: Map_new<LocalVar>(),
         loop_breaks: V_new<I>(),
         loop_continue: 0,
         builtin_fns: Map_new<BuiltinFunction>(),
@@ -393,9 +400,22 @@ f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
 }
 
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
+    l prev_locals = ctx.locals;
+    ctx.locals = Map_new<LocalVar>();
+
     AW_emit_dummy_function_prelude(&ctx.wr, fn.key);
+
+    v idx = 0;
+    w (I_lt(idx, V_len<Parameter>(fn.parameters))) {
+        l parameter = V_get<Parameter>(fn.parameters, idx);
+        Map_insert<LocalVar>(&ctx.locals, parameter.label, LocalVar { local: idx, type: parameter.ty.ty });
+        AW_create_arg_local(&ctx.wr, parameter.label, idx, 8);
+        idx = I_add(idx, 1);
+    }
+
     kompile_block(&ctx, fn.stmts);
     AW_finalize_function(&ctx.wr);
+    ctx.locals = prev_locals;
 }
 
 f kompile_block(ctx: &Ctx, block: V<Stmt>) {
@@ -426,7 +446,9 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 
                 l expr = kompile_expr(&ctx, block.condition);
 
-                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr));
+                print("Expr local");
+                print(I_to_string(expr.local));
+                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr, expr.local));
 
                 kompile_block(&ctx, block.stmts);
 
@@ -455,7 +477,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 
             l expr = kompile_expr(&ctx, while.condition);
 
-            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr));
+            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr, expr.local));
 
             kompile_block(&ctx, while.stmts);
 
@@ -491,6 +513,15 @@ s ExprResult {
 
 f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
     m (expr) {
+        Expr::Ident(ident) => {
+            print("a");
+            l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
+            r ExprResult {
+                local: local.local,
+                type: local.type,
+                size: 8
+            };
+        }
         Expr::FunctionCall(call) => {
             kompile_fn_call(&ctx, call);
             r ExprResult {
