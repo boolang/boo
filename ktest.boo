@@ -1,8 +1,15 @@
 f main() {
-    malloc(32);
-    nop();
-    do_exit<S>(43);
-    do_exit<I>(43);
+    // malloc(32);
+    // nop();
+    // i (n) {
+    //     nop();
+    // } e i (y) {
+    // } e {
+    // }
+    // do_exit<S>(43);
+    // do_exit<I>(43);
+    print("Hello, World!");
+    exit(0);
 }
 
 f do_exit<T>(x: T) {

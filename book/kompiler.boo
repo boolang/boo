@@ -52,33 +52,34 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&exit_params, Parameter {
         label: "status",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
     Ctx_load_builtin(&ctx, "exit", exit_params);
 
+    v print_params = V_new<Parameter>();
+    V_push<Parameter>(&print_params, Parameter {
+        label: "msg",
+        ty: ArgumentType {
+            ty: Type_new("S"),
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "print", print_params);
+
     v i_eq_params = V_new<Parameter>();
     V_push<Parameter>(&i_eq_params, Parameter {
         label: "first",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
     V_push<Parameter>(&i_eq_params, Parameter {
         label: "second",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
@@ -394,8 +395,8 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
             m (literal) {
                 LiteralExpr::Int(int) => {
                     l idx = AW_create_local(&ctx.wr, "tmp_int_lit", 8);
-                    AW_mov_constant_int_to_local(&ctx.wr, idx, 0, int);
-                    l type = Type { ident: "I", generic_parameters: V_new<Type>() };
+                    AW_mov_constant_int_to_local(&ctx.wr, idx, int);
+                    l type = Type_new("I");
                     r ExprResult {
                         local: idx,
                         type: type,
@@ -405,11 +406,11 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                 LiteralExpr::Bool(bool) => {
                     l idx = AW_create_local(&ctx.wr, "tmp_bool_lit", 8);
                     i (bool) {
-                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 1);
+                        AW_mov_constant_int_to_local(&ctx.wr, idx, 1);
                     } e {
-                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 0);
+                        AW_mov_constant_int_to_local(&ctx.wr, idx, 0);
                     }
-                    l type = Type { ident: "B", generic_parameters: V_new<Type>() };
+                    l type = Type_new("B");
                     r ExprResult {
                         local: idx,
                         type: type,
@@ -418,17 +419,24 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                 }
                 LiteralExpr::Char(char) => {
                     l idx = AW_create_local(&ctx.wr, "tmp_char_lit", 8);
-                    AW_mov_constant_int_to_local(&ctx.wr, idx, 0, C_ord(char));
-                    l type = Type { ident: "C", generic_parameters: V_new<Type>() };
+                    AW_mov_constant_int_to_local(&ctx.wr, idx, C_ord(char));
+                    l type = Type_new("C");
                     r ExprResult {
                         local: idx,
                         type: type,
                         size: 8
                     };
                 }
-                _ => {
-                    print("Non-integer literals not supported");
-                    exit();
+                LiteralExpr::String(string) => {
+                    l idx = AW_create_local(&ctx.wr, "tmp_str_lit", 8);
+                    AW_make_string(&ctx.wr, string);
+                    AW_mov_rax_to_local(&ctx.wr, idx);
+                    l type = Type_new("S");
+                    r ExprResult {
+                        local: idx,
+                        type: type,
+                        size: 8
+                    };
                 }
             }
         }
@@ -437,6 +445,10 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
             exit();
         }
     }
+}
+
+f Type_new(ident: S) -> Type {
+    r Type { ident: ident, generic_parameters: V_new<Type>() };
 }
 
 f exit() {
@@ -476,7 +488,7 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
 
 f create_unit_local(ctx: &Ctx) -> I {
     l idx = AW_create_local(&ctx.wr, "unit", 8);
-    AW_mov_constant_int_to_local(&ctx.wr, idx, 0, 0);
+    AW_mov_constant_int_to_local(&ctx.wr, idx, 0);
     r idx;
 }
 

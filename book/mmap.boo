@@ -3,6 +3,10 @@ s MMKey {
     generic_args: V<Type>,
 }
 
+f MMKey_new(ident: S) -> MMKey {
+    r MMKey { ident: ident, generic_args: V_new<Type>() };
+}
+
 f MMKey_eq(left: MMKey, right: MMKey) -> B {
     i (not(S_eq(left.ident, right.ident))) {
         r n;

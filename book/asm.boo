@@ -130,18 +130,48 @@ f AW_local_rbp_offset(wr: AsmWriter, local_idx: I, offset: I) -> I {
     r I_add(var.offset, I_sub(var.size, offset));
 }
 
-f AW_mov_constant_int_to_local(wr: &AsmWriter, dst_idx: I, dst_offset: I, value: I) {
+f AW_mov_constant_int_to_local(wr: &AsmWriter, dst_idx: I, value: I) {
     // Write a constant value to an offset within a stack variable
     //  0:   48 b8 67 67 67 67 67    movabs $0x6767676767676767,%rax
     //  7:   67 67 67
-    //  a:   48 89 85 ff ff 44 44    mov    %rax,0x4444ffff(%rbp)
     v code = I_u16_to_bytes(0xb848);
-    l offset = AW_local_rbp_offset(wr, dst_idx, dst_offset);
     code = S_concat(code, I_u64_to_bytes(value));
-    code = S_concat(code, I_u16_to_bytes(0x8948));
+    AW_write(&wr, code);
+
+    AW_mov_rax_to_local(&wr, dst_idx);
+}
+
+f AW_mov_rax_to_local(wr: &AsmWriter, dst_idx: I) {
+    //  a:   48 89 85 ff ff 44 44    mov    %rax,0x4444ffff(%rbp)
+    l offset = AW_local_rbp_offset(wr, dst_idx, 0);
+    v code = I_u16_to_bytes(0x8948);
     code = S_push(code, I_chr(0x85));
     code = S_concat(code, I_u32_to_bytes(offset));
     AW_write(&wr, code);
+}
+
+f AW_str_literal_to_rdi(wr: &AsmWriter, literal: S) {
+    // 0:   48 8d 3d 05 00 00 00    lea    0x5(%rip),%rdi        # 0xc
+    // 7:   e9 00 01 00 00          jmp    0x10c
+
+    v code = I_u32_to_bytes(0x053d8d48);
+    code = S_concat(code, I_u32_to_bytes(0xe9));
+    code = S_concat(code, I_u32_to_bytes(S_len(literal)));
+    code = S_concat(code, literal);
+    AW_write(&wr, code);
+}
+
+f AW_write_mov_rsi(wr: &AsmWriter, value: I) {
+    //  0:   48 be 67 67 67 67 67    movabs $0x6767676767676767,%rsi
+    //  7:   67 67 67
+    l code = S_concat(I_u16_to_bytes(0xbe48), I_u64_to_bytes(value));
+    AW_write(&wr, code);
+}
+
+f AW_make_string(wr: &AsmWriter, literal: S) {
+    AW_str_literal_to_rdi(&wr, literal);
+    AW_write_mov_rsi(&wr, S_len(literal));
+    AW_call(&wr, MMKey_new("make_str"));
 }
 
 f AW_mov_local_to_local(wr: &AsmWriter, dst_idx: I, src_idx: I) {
