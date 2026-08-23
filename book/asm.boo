@@ -8,11 +8,6 @@ s Local {
     offset: I
 }
 
-s PendingMov {
-    location: I,
-    reg: Reg
-}
-
 s AsmWriter {
     base_addr: I,
     buf: S,
@@ -20,16 +15,10 @@ s AsmWriter {
     jumps: MMap<I>,
     // Stores locations of jumps that are waiting to be rewritten to the given block.
     pending_jumps: MMap<V<I>>,
-    // Movs to rewrite when we emit constants (after emitting all functions). The map
-    // is keyed by integers converted to strings
-    constant_loads: Map<V<PendingMov>>,
     function_prelude_location: I,
-    locals: V<Local>
-}
-
-t Reg {
-    Rax,
-    Rdi
+    locals: V<Local>,
+    // Map from idents to corresponding locals
+    local_map: Map<I>,
 }
 
 f AW_idx(wr: AsmWriter) -> I {
@@ -41,6 +30,9 @@ f AW_write(wr: &AsmWriter, data: S) {
 }
 
 f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
+    wr.locals = V_new<Local>();
+    wr.local_map = Map_new<I>();
+
     l fn_idx = AW_idx(wr);
     MMap_insert<I>(&wr.jumps, MMKey { ident: ident, generic_args: V_new<Type>() }, fn_idx);
     AW_write(&wr, fn.asm);
@@ -139,10 +131,16 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
     r local_count;
 }
 
-f AW_create_heap_local(wr: &AsmWriter, name: S, size: I) -> I {
+// is_named is whether the user can refer to the variable by the name,
+// if false the name is just for debugging purposes (e.g. an internal
+// temporary variable).
+f AW_create_heap_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
     l idx = AW_create_local(&wr, name, 8);
     AW_malloc(&wr, size);
     AW_mov_rax_to_local(&wr, idx);
+    i (is_named) {
+        Map_insert<I>(&wr.local_map, name, idx);
+    }
     r idx;
 }
 
@@ -257,11 +255,6 @@ f AW_create_constant(wr: &AsmWriter, data: S) -> I {
     // offset of the constant to AsmWriter somewhere to be used from AW_load_constant
 }
 
-f AW_load_constant(wr: &AsmWriter, reg: Reg, constant_idx: I) {
-    // Emit enough dummy bytes to fit an imm64 mov, and add
-    // the location of the first byte to constant_loads
-}
-
 f AW_create_jump(wr: &AsmWriter, dst_offset: I) {
     // Emit an unconditional jump to the given offset
     l addr = I_add(dst_offset, wr.base_addr);
@@ -294,20 +287,23 @@ f AW_overwrite_jump(wr: &AsmWriter, instr: I, dst_offset: I) {
     S_set_range(&wr.buf, instr, I_u32_to_bytes(addr));
 }
 
-f AW_mov_local_to_rax(wr: &AsmWriter, local_idx: I) {
-    //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
-    l offset = AW_local_rbp_offset(wr, local_idx, 0);
+f AW_mov_stack_to_rax(wr: &AsmWriter, rbp_offset: I) {
     v code = I_u16_to_bytes(0x8b48);
     code = S_push(code, I_chr(0x85));
-    code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
+    code = S_concat(code, I_i32_to_bytes(rbp_offset));
     AW_write(&wr, code);
 }
 
-f AW_push_argument_ptr(wr: &AsmWriter, local_idx: I) {
+f AW_mov_local_to_rax(wr: &AsmWriter, local_idx: I) {
+    //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
+    l offset = AW_local_rbp_offset(wr, local_idx, 0);
+    AM_mov_stack_to_rax(&wr, I_neg(offset));
+}
+
+f AW_push_argument_from_rax(wr: &AsmWriter) {
     // Push address to local onto stack as a function argument
 
     //  7:   50                      push   %rax
-    AW_mov_local_to_rax(&wr, local_idx);
     AW_write(&wr, S_new_from_char(I_chr(0x50)));
 }
 

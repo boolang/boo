@@ -30,6 +30,8 @@ s Ctx {
     loop_continue: I,
     builtin_fns: Map<BuiltinFunction>,
     constants: V<Constant>,
+    // Maps arg name to arg index
+    fn_args: Map<I>,
     wr: AsmWriter
 }
 
@@ -303,14 +305,15 @@ f kompile(ast: Ast) {
         loop_continue: 0,
         builtin_fns: Map_new<BuiltinFunction>(),
         constants: V_new<Constant>(),
+        fn_args: Map_new<I>(),
         wr: AsmWriter {
             base_addr: 0x400000,
             buf: "",
             jumps: MMap_new<I>(),
             pending_jumps: MMap_new<V<I>>(),
-            constant_loads: Map_new<V<PendingMov>>(),
             function_prelude_location: -1,
-            locals: V_new<Local>()
+            locals: V_new<Local>(),
+            local_map: Map_new<I>()
         }
     };
 
@@ -416,17 +419,36 @@ f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
     r new_type;
 }
 
+t FunctionLocal {
+    Local(I),
+    Argument(I)
+}
+
+f resolve_ident(ctx: Ctx, ident: S) -> FunctionLocal {
+    l local_lookup = Map_get<I>(ctx.wr.local_map, ident);
+    i (O_is_some<I>(local_lookup)) {
+        r FunctionLocal::Local(O_get<I>(local_lookup));
+    }
+
+    l arg_lookup = Map_get<I>(ctx.fn_args, ident);
+    i (O_is_some<I>(arg_lookup)) {
+        r FunctionLocal::Argument(O_get<I>(arg_lookup));
+    }
+
+    print(S_concat("No such local/arg: ", ident));
+    exit();
+}
+
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
     l prev_locals = ctx.locals;
-    ctx.locals = Map_new<LocalVar>();
+    ctx.fn_args = Map_new<I>();
 
     AW_emit_dummy_function_prelude(&ctx.wr, fn.key);
 
     v idx = 0;
     w (I_lt(idx, V_len<Parameter>(fn.parameters))) {
         l parameter = V_get<Parameter>(fn.parameters, idx);
-        Map_insert<LocalVar>(&ctx.locals, parameter.label, LocalVar { local: idx, type: parameter.ty.ty });
-        AW_create_arg_local(&ctx.wr, parameter.label, idx, 8);
+        Map_insert<I>(&ctx.fn_args, parameter.label, idx);
         idx = I_add(idx, 1);
     }
 
@@ -471,8 +493,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 
                 l expr = kompile_expr(&ctx, block.condition);
 
-                print("Expr local");
-                print(I_to_string(expr.local));
+                // TODO: expr.local doesn't exist anymore, result is pointer to by rax
                 next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr, expr.local));
 
                 kompile_block(&ctx, block.stmts);
@@ -542,21 +563,13 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 }
 
 s ExprResult {
-    // The index of the local that stores the result
-    local: I,
-    type: Type,
-    size: I
 }
 
 f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
     m (expr) {
         PlaceExpr::Ident(ident) => {
             l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
-            r ExprResult {
-                local: local.local,
-                type: local.type,
-                size: 8
-            };
+            r ExprResult {};
         }
         _ => {
             print("Unsupported expr type");
@@ -565,73 +578,61 @@ f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
     }
 }
 
+f fn_local_to_rbp_offset(local: FunctionLocal) -> I {
+    m (local) {
+        FunctionLocal::Local(idx) => {
+            r I_neg(I_add(I_mul(idx, 8), 8));
+        }
+        FunctionLocal::Argument(idx) => {
+            r I_add(I_mul(idx, 8), 16);
+        }
+    }
+}
+
 f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
     m (expr) {
         Expr::Ident(ident) => {
-            l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
-            r ExprResult {
-                local: local.local,
-                type: local.type,
-                size: 8
-            };
+            l local = resolve_ident(ctx, ident);
+            l offset = fn_local_to_rbp_offset(local);
+            AW_mov_stack_to_rax(&ctx.wr, offset);
+            r ExprResult {};
         }
         Expr::FunctionCall(call) => {
-            l result = AW_create_heap_local(&ctx.wr, "result_tmp", 8);
+            l result = AW_create_heap_local(&ctx.wr, "result_tmp", 8, n);
             kompile_fn_call(&ctx, call);
-            AW_mov_rax_to_local(&ctx.wr, result);
-            r ExprResult {
-                local: result,
-                // TODO: Create proper type info.
-                type: Type { ident: "U", generic_parameters: V_new<Type>() },
-                size: 0
-            };
+            r ExprResult {};
         }
         Expr::Literal(literal) => {
             m (literal) {
                 LiteralExpr::Int(int) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8, n);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, int);
+                    AW_mov_stack_to_rax(&ctx.wr, idx);
                     l type = Type_new("I");
-                    r ExprResult {
-                        local: idx,
-                        type: type,
-                        size: 8
-                    };
+                    r ExprResult {};
                 }
                 LiteralExpr::Bool(bool) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_bool_lit", 8);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_bool_lit", 8, n);
                     i (bool) {
                         AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 1);
                     } e {
                         AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 0);
                     }
+                    AW_mov_stack_to_rax(&ctx.wr, idx);
                     l type = Type_new("B");
-                    r ExprResult {
-                        local: idx,
-                        type: type,
-                        size: 8
-                    };
+                    r ExprResult {};
                 }
                 LiteralExpr::Char(char) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8, n);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, C_ord(char));
+                    AW_mov_stack_to_rax(&ctx.wr, idx);
                     l type = Type_new("C");
-                    r ExprResult {
-                        local: idx,
-                        type: type,
-                        size: 8
-                    };
+                    r ExprResult {};
                 }
                 LiteralExpr::String(string) => {
-                    l idx = AW_create_local(&ctx.wr, "tmp_str_lit", 8);
                     AW_make_string(&ctx.wr, string);
-                    AW_mov_rax_to_local(&ctx.wr, idx);
                     l type = Type_new("S");
-                    r ExprResult {
-                        local: idx,
-                        type: type,
-                        size: 8
-                    };
+                    r ExprResult {};
                 }
             }
         }
@@ -664,7 +665,7 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
         m (arg) {
             ArgumentValue::Immutable(expr) => {
                 l result = kompile_expr(&ctx, expr);
-                AW_push_argument_ptr(&ctx.wr, result.local);
+                AW_push_argument_from_rax(&ctx.wr);
             }
             ArgumentValue::Mutable => {
                 print("Mutable references not supported");
@@ -674,11 +675,7 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
         idx = I_sub(idx, 1);
     }
    
-    r ExprResult {
-        local: ret,
-        type: Type { ident: "H", generic_parameters: V_new<Type>() },
-        size: 8
-    };
+    r ExprResult {};
 }
 
 f create_unit_local(ctx: &Ctx) -> I {
@@ -774,7 +771,7 @@ f Type_eq(self: Type, other: Type) -> B {
 f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
     l maybe_fn = Map_get<BuiltinFunction>(ctx.builtin_fns, call.ident);
     i (O_is_none<BuiltinFunction>(maybe_fn)) {
-        print(S_concat("Function does not exist with name: ", call.ident));
+        print(S_concat("Function does not exist with ident: ", call.ident));
         exit();
     } e {
         l fn = O_get<BuiltinFunction>(maybe_fn);
