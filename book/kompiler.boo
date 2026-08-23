@@ -35,6 +35,19 @@ f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
 }
 
 f Ctx_load_stdlib_builtins(ctx: &Ctx) {
+    v malloc_params = V_new<Parameter>();
+    V_push<Parameter>(&malloc_params, Parameter {
+        label: "size",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "malloc", malloc_params);
+
     v exit_params = V_new<Parameter>();
     V_push<Parameter>(&exit_params, Parameter {
         label: "status",
@@ -71,9 +84,9 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     });
     Ctx_load_builtin(&ctx, "I_eq", i_eq_params);
 
-    v malloc_params = V_new<Parameter>();
-    V_push<Parameter>(&malloc_params, Parameter {
-        label: "size",
+    v i_add_params = V_new<Parameter>();
+    V_push<Parameter>(&i_add_params, Parameter {
+        label: "first",
         ty: ArgumentType {
             ty: Type {
                 ident: "I",
@@ -82,7 +95,76 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "malloc", malloc_params);
+    V_push<Parameter>(&i_add_params, Parameter {
+        label: "second",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "I_add", i_add_params);
+
+    v i_udiv_params = V_new<Parameter>();
+    V_push<Parameter>(&i_udiv_params, Parameter {
+        label: "first",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&i_udiv_params, Parameter {
+        label: "second",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "I_udiv", i_udiv_params);
+
+    v s_concat_params = V_new<Parameter>();
+    V_push<Parameter>(&s_concat_params, Parameter {
+        label: "first",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "S",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&s_concat_params, Parameter {
+        label: "second",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "S",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "S_concat", s_concat_params);
+
+    v s_len_params = V_new<Parameter>();
+    V_push<Parameter>(&s_len_params, Parameter {
+        label: "first",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "S",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "S_len", s_len_params);
 }
 
 f kompile(ast: Ast) {
