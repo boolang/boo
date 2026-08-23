@@ -515,6 +515,18 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
         Stmt::Continue => {
             AW_create_jump(&ctx.wr, ctx.loop_continue);
         }
+        Stmt::Assignment(assign) => {
+            // s AssignmentStmt {
+            //     place: PlaceExpr,
+            //     value: Expr,
+            // }
+
+            l place = kompile_place(&ctx, assign.place);
+            l expr = kompile_expr(&ctx, assign.value);
+
+            AW_mov_local_to_rax(&ctx.wr, place.local);
+            AW_mov_rax_to_local(&ctx.wr, expr.local);
+        }
         _ => {
             print("Unsupported stmt type");
         }
@@ -528,10 +540,26 @@ s ExprResult {
     size: I
 }
 
+f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
+    m (expr) {
+        PlaceExpr::Ident(ident) => {
+            l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
+            r ExprResult {
+                local: local.local,
+                type: local.type,
+                size: 8
+            };
+        }
+        _ => {
+            print("Unsupported expr type");
+            exit();
+        }
+    }
+}
+
 f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
     m (expr) {
         Expr::Ident(ident) => {
-            print("a");
             l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
             r ExprResult {
                 local: local.local,

@@ -283,7 +283,8 @@ f AW_create_overwritable_jz(wr: &AsmWriter, local_idx: I) -> I {
     // ba ef be ad de 48 83 f8 00 75 02 ff e2 (cmp rax, 0)
     AW_mov_local_to_rax(&wr, local_idx);
     l offset = I_add(AW_idx(wr), 1);
-    l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
+    l code = S_concat(I_u64_to_bytes(0x003880deadbeefba), I_u32_to_bytes(0xe2ff0275));
+    // l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
     AW_write(&wr, code);
     r offset;
 }

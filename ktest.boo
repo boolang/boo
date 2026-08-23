@@ -10,12 +10,13 @@ f main() {
     // }
     // do_exit<S>(43);
     // do_exit<I>(43);
-    check(y);
+    check(n);
     exit(0);
 }
 
 f check(var: B) {
-    i (var) {
+    var = y;
+    i (n) {
         print("Fizz");
     } e {
         print("Buzz");
