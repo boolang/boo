@@ -177,9 +177,6 @@ f AW_mov_constant_int_to_heap_local(wr: &AsmWriter, dst_idx: I, value: I) {
 //     
 // }
 // 
-// f AW_mov_rax_to_rbx(wr: &AsmWriter) {
-//     
-// }
 
 f AW_mov_rax_to_rbx_ptr(wr: &AsmWriter) {
     //  0:   48 89 03                mov    %rax,(%rbx)
@@ -188,12 +185,8 @@ f AW_mov_rax_to_rbx_ptr(wr: &AsmWriter) {
 }
 
 f AW_mov_local_to_rbx(wr: &AsmWriter, local_idx: I) {
-    //  0:   48 8b 9d 99 98 ff ff    mov    -0x6767(%rbp),%rbx
     l offset = AW_local_rbp_offset(wr, local_idx, 0);
-    v code = I_u16_to_bytes(0x8b48);
-    code = S_push(code, I_chr(0x9d));
-    code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
-    AW_write(&wr, code);
+    AW_mov_stack_to_rbx(&wr, I_neg(offset));
 }
 
 f AW_mov_rax_to_local(wr: &AsmWriter, dst_idx: I) {
@@ -302,6 +295,14 @@ f AW_mov_stack_to_rax(wr: &AsmWriter, rbp_offset: I) {
     AW_write(&wr, code);
 }
 
+f AW_mov_stack_to_rbx(wr: &AsmWriter, rbp_offset: I) {
+    //  0:   48 8b 9d 99 98 ff ff    mov    -0x6767(%rbp),%rbx
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x9d));
+    code = S_concat(code, I_i32_to_bytes(rbp_offset));
+    AW_write(&wr, code);
+}
+
 f AW_mov_local_to_rax(wr: &AsmWriter, local_idx: I) {
     //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
     l offset = AW_local_rbp_offset(wr, local_idx, 0);
@@ -369,6 +370,11 @@ f encode_mov_rax(value: I) -> S {
     r S_concat(S_new_from_char(I_chr(0xb8)), I_u32_to_bytes(value));
 }
 
+f encode_mov_rcx(value: I) -> S {
+    //  0:   b9 41 41 41 41          mov    $0x41414141,%ecx
+    r S_concat(S_new_from_char(I_chr(0xb9)), I_u32_to_bytes(value));
+}
+
 f AW_call(wr: &AsmWriter, symbol: MMKey) {
     // If symbol in jumps, emit concrete call instr
     // Otherwise, emit space for call instr
@@ -382,7 +388,8 @@ f AW_call(wr: &AsmWriter, symbol: MMKey) {
         MMap_V_push<I>(&wr.pending_jumps, symbol, offset);
     }
 
-    l code = S_concat(encode_mov_rax(addr), I_u16_to_bytes(0xd0ff));
+    //  a:   ff d1                   call   *%rcx
+    l code = S_concat(encode_mov_rcx(addr), I_u16_to_bytes(0xd1ff));
     AW_write(&wr, code);
 }
 

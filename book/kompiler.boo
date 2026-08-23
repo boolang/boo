@@ -61,8 +61,10 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     });
     Ctx_load_builtin(&ctx, "malloc", malloc_params);
 
+    // NOTE: These don't follow Boo ABI, they are compiler helpers
     l empty_params = V_new<Parameter>();
     Ctx_load_builtin(&ctx, "make_str", empty_params);
+    Ctx_load_builtin(&ctx, "copy_content", empty_params);
 
     v exit_params = V_new<Parameter>();
     V_push<Parameter>(&exit_params, Parameter {
@@ -574,8 +576,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             kompile_expr(&ctx, assign.value);
             l place = kompile_place(&ctx, assign.place);
 
-            AW_mov_local_to_rax(&ctx.wr, place.local);
-            AW_mov_rax_to_local(&ctx.wr, expr.local);
+            AW_call(&ctx.wr, MMKey_new("copy_content"));
         }
         Stmt::VarDecl(var) => {
             i (O_is_none<Type>(var.ty)) {
@@ -621,10 +622,13 @@ f get_size_of_type(ctx: Ctx, type: Type) -> I {
 s ExprResult {
 }
 
+// Puts a place in rbx and doesn't clobber rax
 f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
     m (expr) {
         PlaceExpr::Ident(ident) => {
-            l local = O_get<LocalVar>(Map_get<LocalVar>(ctx.locals, ident));
+            l local = resolve_ident(ctx, ident);
+            l rbp_offset = fn_local_to_rbp_offset(local);
+            AW_mov_stack_to_rbx(&ctx.wr, rbp_offset);
             r ExprResult {};
         }
         _ => {
