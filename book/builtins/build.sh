@@ -2,6 +2,7 @@ nasm exit.S
 nasm print.S
 nasm I_add.S
 nasm I_eq.S
+nasm I_udiv.S
 nasm malloc.S
 nasm make_str.S
 nasm S_concat.S

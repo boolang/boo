@@ -30,7 +30,8 @@
     jz first_exit
     mov rsi, [rdi];
 first_loop:
-    mov [r9], [rsi]
+    mov rdx, [rsi];
+    mov [r9], rdx;
     inc r9;
     inc rsi;
     inc rdi;
@@ -45,7 +46,8 @@ first_exit:
     jz second_exit
     mov rsi, [rdi];
 second_loop:
-    mov [r9], [rsi]
+    mov rdx, [rsi];
+    mov [r9], rdx;
     inc r9;
     inc rsi;
     inc rdi;
