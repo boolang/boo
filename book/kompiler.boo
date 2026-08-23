@@ -79,6 +79,23 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     });
     Ctx_load_builtin(&ctx, "print", print_params);
 
+    v read_count_params = V_new<Parameter>();
+    V_push<Parameter>(&read_count_params, Parameter {
+        label: "path",
+        ty: ArgumentType {
+            ty: Type_new("S"),
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&read_count_params, Parameter {
+        label: "count",
+        ty: ArgumentType {
+            ty: Type_new("I"),
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "read_count", read_count_params);
+
     v i_eq_params = V_new<Parameter>();
     V_push<Parameter>(&i_eq_params, Parameter {
         label: "first",

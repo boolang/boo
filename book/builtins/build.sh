@@ -12,3 +12,4 @@ nasm V_push.S
 nasm V_len.S
 nasm V_get.S
 nasm V_set.S
+nasm read_count.S
