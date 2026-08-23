@@ -4,6 +4,7 @@
 ;    size: u64,
 ; }
 ; abi: pointer in rdi and size in rsi, address stored in rax
+;      nukes r9 too
 [BITS 64]
     ; malloc(0x10)
     push rdi;
