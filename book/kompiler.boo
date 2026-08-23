@@ -130,6 +130,9 @@ f kompile(ast: Ast) {
     print("# functions:");
     print(I_to_string(Map_count<Function>(ctx.fns)));
 
+    emit_builtins(&ctx);
+    l entry_point = I_add(ctx.wr.base_addr, AW_idx(ctx.wr));
+
     Q_push<MMKey>(&ctx.fn_q, MMKey { ident: "main", generic_args: V_new<Type>() });
     v fn = Q_pop<MMKey>(&ctx.fn_q);
     w (O_is_some<MMKey>(fn)) {
@@ -144,10 +147,8 @@ f kompile(ast: Ast) {
         fn = Q_pop<MMKey>(&ctx.fn_q);
     }
 
-    emit_builtins(&ctx);
-
     write_to_file("bin_raw", ctx.wr.buf);
-    l elf = gen_elf(0x400000, 0x400000, S_len(ctx.wr.buf), ctx.wr.buf);
+    l elf = gen_elf(entry_point, 0x400000, S_len(ctx.wr.buf), ctx.wr.buf);
     write_to_file("bin", elf);
     print("boo!");
 }
@@ -298,9 +299,16 @@ f exit() {
     nonexistent();
 }
 
-f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) {
-    v idx = 0;
-    w (I_lt(idx, V_len<ArgumentValue>(call.arguments))) {
+// The value is a heap pointer
+f Type_is_heap(type: Type) -> B {
+    r S_eq(heap.ident, "H");
+}
+
+f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
+    l ret = AW_create_local(&ctx.wr, "ret_val_addr", 8);
+
+    v idx = I_sub(V_len<ArgumentValue>(call.arguments), 1);
+    w (I_ge(idx, 0)) {
         l arg = V_get<ArgumentValue>(call.arguments, idx);
         m (arg) {
             ArgumentValue::Immutable(expr) => {
@@ -312,8 +320,14 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) {
                 exit();
             }
         }
-        idx = I_add(idx, 1);
+        idx = I_sub(idx, 1);
     }
+   
+    r ExprResult {
+        local: ret,
+        type: Type { ident: "H", generic_parameters: V_new<Type>() },
+        size: 8
+    };
 }
 
 f create_unit_local(ctx: &Ctx) -> I {
@@ -322,8 +336,8 @@ f create_unit_local(ctx: &Ctx) -> I {
     r idx;
 }
 
-f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
-    prepare_fn_call_args(&ctx, call);
+f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
+    l expr_result = prepare_fn_call_args(&ctx, call);
 
     l maybe_fn = Map_get<Function>(ctx.fns, call.ident);
     i (O_is_none<Function>(maybe_fn)) {
@@ -354,6 +368,8 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
 
     l nargs = V_len<ArgumentValue>(call.arguments);
     AW_shrink_stack(&ctx.wr, I_mul(8, nargs));
+
+    r expr_result;
 }
 
 f queue_fn(ctx: &Ctx, fn: MMKey) {
