@@ -176,6 +176,29 @@ f AW_load_constant(wr: &AsmWriter, reg: Reg, constant_idx: I) {
     // the location of the first byte to constant_loads
 }
 
+f AW_create_overwritable_jump(wr: &AsmWriter) -> I {
+    // Emit a dummy jump and return the index of an overwriteable jump offset
+    l offset = I_add(AW_idx(wr), 1);
+    l code = S_concat(encode_mov_rax(0xdeadbeef), I_u16_to_bytes(0xe0ff));
+    AW_write(&wr, code);
+    r offset;
+}
+
+f AW_create_overwritable_jz(wr: &AsmWriter) -> I {
+    // Emit a dummy jump-if-rax-is-zero and return the index of an overwriteable jump offset
+    // ba ef be ad de 80 38 00 75 02 ff e2 (cmp [rax], 0)
+    // ba ef be ad de 48 83 f8 00 75 02 ff e2 (cmp rax, 0)
+    l offset = I_add(AW_idx(wr), 1);
+    l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
+    AW_write(&wr, code);
+    r offset;
+}
+
+f AW_overwrite_jump(wr: &AsmWriter, instr: I, dst_offset: I) {
+    l addr = I_add(dst_offset, wr.base_addr);
+    S_set_range(&wr.buf, instr, I_u32_to_bytes(addr));
+}
+
 f AW_push_argument_ptr(wr: &AsmWriter, local_idx: I) {
     // Push address to local onto stack as a function argument
     l offset = AW_local_rbp_offset(wr, local_idx, 0);

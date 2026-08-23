@@ -208,20 +208,72 @@ f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
 
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
     AW_emit_dummy_function_prelude(&ctx.wr, fn.key);
+    kompile_block(&ctx, fn.stmts);
+    AW_finalize_function(&ctx.wr);
+}
+
+f kompile_block(ctx: &Ctx, block: V<Stmt>) {
     v idx = 0;
-    w (I_lt(idx, V_len<Stmt>(fn.stmts))) {
-        l stmt = V_get<Stmt>(fn.stmts, idx);
+    w (I_lt(idx, V_len<Stmt>(block))) {
+        l stmt = V_get<Stmt>(block, idx);
         print("Kompiling stmt");
         kompile_stmt(&ctx, stmt);
         idx = I_add(idx, 1);
     }
-    AW_finalize_function(&ctx.wr);
 }
 
 f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
     m (stmt) {
         Stmt::Expr(expr) => {
             kompile_expr(&ctx, expr);
+        }
+        Stmt::If(if) => {
+            // s IfBlock {
+            //     condition: Expr,
+            //     stmts: V<Stmt>,
+            // }
+
+            // s ElseBlock {
+            //     stmts: V<Stmt>,
+            // }
+
+            // s IfStmt {
+            //     if_blocks: V<IfBlock>,
+            //     else_block: O<ElseBlock>,
+            // }
+
+            v next_cond_instr = O_none<I>();
+            v leave_instrs = V_new<I>();
+
+            v idx = 0;
+            w (I_lt(idx, V_len<IfBlock>(if.if_blocks))) {
+                l block = V_get<IfBlock>(if.if_blocks, idx);
+                i (O_is_some<I>(next_cond_instr)) {
+                    AW_overwrite_jump(&ctx.wr, O_get<I>(next_cond_instr), AW_idx(ctx.wr));
+                }
+
+                l expr = kompile_expr(&ctx, block.condition);
+
+                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr));
+
+                kompile_block(&ctx, block.stmts);
+
+                V_push<I>(&leave_instrs, AW_create_overwritable_jump(&ctx.wr));
+
+                idx = I_add(idx, 1);
+            }
+
+            AW_overwrite_jump(&ctx.wr, O_get<I>(next_cond_instr), AW_idx(ctx.wr));
+
+            i (O_is_some<ElseBlock>(if.else_block)) {
+                kompile_block(&ctx, O_get<ElseBlock>(if.else_block).stmts);
+            }
+
+            idx = 0;
+            w (I_lt(idx, V_len<I>(leave_instrs))) {
+                AW_overwrite_jump(&ctx.wr, V_get<I>(leave_instrs, idx), AW_idx(ctx.wr));
+                idx = I_add(idx, 1);
+            }
         }
         _ => {
             print("Unsupported stmt type");
