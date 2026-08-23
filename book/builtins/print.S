@@ -7,4 +7,11 @@ mov rsi, [rdi];
 mov rdi, 1;
 mov rax, 1;
 syscall;
+mov rdx, 1;
+mov rsi, [rel buf];
+mov rdi, 1;
+mov rax, 1;
+syscall;
 ret;
+buf:
+    db "\n"
