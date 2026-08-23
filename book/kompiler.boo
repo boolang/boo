@@ -32,7 +32,10 @@ s Ctx {
     constants: V<Constant>,
     // Maps arg name to arg index
     fn_args: Map<I>,
-    wr: AsmWriter
+    wr: AsmWriter,
+    types: Map<TypeInfo>,
+    // Map from builtin type names sizes
+    builtin_types: Map<I>,
 }
 
 f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
@@ -294,7 +297,19 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     Ctx_load_builtin(&ctx, "V_set", v_set_params);
 }
 
+s TypeInfo {
+    size: I
+}
+
 f kompile(ast: Ast) {
+    v builtin_types = Map_new<I>();
+    Map_insert<I>(&builtin_types, "C", 8);
+    Map_insert<I>(&builtin_types, "U", 8);
+    Map_insert<I>(&builtin_types, "I", 8);
+    Map_insert<I>(&builtin_types, "B", 8);
+    Map_insert<I>(&builtin_types, "S", 16);
+    Map_insert<I>(&builtin_types, "V", 16);
+
     v ctx = Ctx {
         structs: Map_new<Struct>(),
         enums: Map_new<Enum>(),
@@ -314,7 +329,9 @@ f kompile(ast: Ast) {
             function_prelude_location: -1,
             locals: V_new<Local>(),
             local_map: Map_new<I>()
-        }
+        },
+        types: Map_new<TypeInfo>(),
+        builtin_types: builtin_types
     };
 
     Ctx_load_stdlib_builtins(&ctx);
@@ -325,9 +342,12 @@ f kompile(ast: Ast) {
         m (decl) {
             Decl::Struct(struct) => {
                 Map_insert<Struct>(&ctx.structs, struct.ident, struct);
+                l info = TypeInfo { size: I_mul(V_len<Field>(struct.fields), 8) };
+                Map_insert<TypeInfo>(&ctx.types, struct.ident, info);
             }
             Decl::Enum(enum) => {
                 Map_insert<Enum>(&ctx.enums, enum.ident, enum);
+                // TODO: Register type info in ctx.types
             }
             Decl::Function(function) => {
                 Map_insert<Function>(&ctx.fns, function.signature.ident, function);
@@ -550,11 +570,29 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             //     value: Expr,
             // }
 
+            // TODO: Move expr to rbx
+            kompile_expr(&ctx, assign.value);
             l place = kompile_place(&ctx, assign.place);
-            l expr = kompile_expr(&ctx, assign.value);
 
             AW_mov_local_to_rax(&ctx.wr, place.local);
             AW_mov_rax_to_local(&ctx.wr, expr.local);
+        }
+        Stmt::VarDecl(var) => {
+            i (O_is_none<Type>(var.ty)) {
+                print("Variable decl type annotations are required");
+                exit();
+            }
+            
+            l type = O_get<Type>(var.ty);
+            l sz = get_size_of_type(ctx, type);
+            l idx = AW_create_heap_local(&ctx.wr, var.ident, sz, y);
+
+            v value = O_none<ExprResult>();
+            i (O_is_some<Expr>(var.value)) {
+                value = O_some<ExprResult>(kompile_expr(&ctx, O_get<Expr>(var.value)));
+            }
+
+            AW_mov_rax_to_local(&ctx.wr, idx);
         }
         _ => {
             print("Unsupported stmt type");
@@ -562,6 +600,24 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
     }
 }
 
+f get_size_of_type(ctx: Ctx, type: Type) -> I {
+    l builtin_lookup = Map_get<I>(ctx.builtin_types, type.ident);
+    i (O_is_some<I>(builtin_lookup)) {
+        r O_get<I>(builtin_lookup);
+    }
+
+    l lookup = Map_get<TypeInfo>(ctx.types, type.ident);
+    i (O_is_none<TypeInfo>(lookup)) {
+        print(S_concat(S_concat("Assuming that ", type.ident), " is a type parameter"));
+        r 8;
+    }
+
+    l info = O_get<TypeInfo>(lookup);
+    r info.size;
+}
+
+// Used to be used, but emptied it to find all of the now incorrect
+// usages of it. Expr results are now stored in rax.
 s ExprResult {
 }
 

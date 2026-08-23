@@ -382,7 +382,29 @@ f parse_var_decl(input: S) -> Parse<VarDecl> {
     l ident = parse_ident(acc);
     acc = ident.rest;
 
-    acc = next_token(acc).rest; // Equals
+    v type = O_none<Type>();
+    result = next_token(acc);
+    m (result.value) {
+        Token::Colon => {
+            acc = result.rest;
+            v type_result = parse_type(acc);
+            type = O_some<Type>(type_result.value);
+            acc = type_result.rest;
+            result = next_token(acc);
+            m (result.value) {
+                Token::Equals => {
+                    acc = result.rest;
+                }
+                _ => {
+                    print("Expected equals");
+                    exit();
+                }
+            }
+        }
+        Token::Equals => {
+            acc = result.rest;
+        }
+    }
 
     l expr = parse_expr(acc);
     acc = expr.rest;
@@ -390,7 +412,7 @@ f parse_var_decl(input: S) -> Parse<VarDecl> {
     acc = next_token(acc).rest; // Semicolon
     
     parser_dbg_print("< var_decl");
-    r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: O_none<Type>(), value: O_some<Expr>(expr.value) } };
+    r Parse<VarDecl> { rest: acc, value: VarDecl { mutable: mutable, ident: ident.value, ty: type, value: O_some<Expr>(expr.value) } };
 }
 
 f parse_expr(input: S) -> Parse<Expr> {

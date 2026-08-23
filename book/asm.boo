@@ -173,6 +173,14 @@ f AW_mov_constant_int_to_heap_local(wr: &AsmWriter, dst_idx: I, value: I) {
     AW_mov_rax_to_rbx_ptr(&wr);
 }
 
+// f AW_mov_rbx_to_rax(wr: &AsmWriter) {
+//     
+// }
+// 
+// f AW_mov_rax_to_rbx(wr: &AsmWriter) {
+//     
+// }
+
 f AW_mov_rax_to_rbx_ptr(wr: &AsmWriter) {
     //  0:   48 89 03                mov    %rax,(%rbx)
     l code = S_push(I_u16_to_bytes(0x8948), I_chr(0x03));

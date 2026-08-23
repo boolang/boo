@@ -15,7 +15,8 @@ f main() {
     // do_exit<S>(43);
     // do_exit<I>(43);
 
-    check(y);
+    v cond: B = n;
+    check(cond);
     my_print(mk_msg());
     exit(0);
 }
