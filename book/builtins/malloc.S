@@ -1,6 +1,8 @@
 ; malloc does not conform to the boo abi, and should only called in codegen!
 ; though... nothing bad would happen if a program did call malloc
 ; abi: rdi stores size, rax returns the address
+;      also will nuke rsi and r9 sorry
+
 [BITS 64]
     ; r9 now stores the buffer address
     mov rdi, 32;
