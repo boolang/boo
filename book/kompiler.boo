@@ -494,7 +494,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
                 l expr = kompile_expr(&ctx, block.condition);
 
                 // TODO: expr.local doesn't exist anymore, result is pointer to by rax
-                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr, expr.local));
+                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr));
 
                 kompile_block(&ctx, block.stmts);
 
@@ -523,7 +523,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 
             l expr = kompile_expr(&ctx, while.condition);
 
-            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr, expr.local));
+            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr));
 
             kompile_block(&ctx, while.stmts);
 
@@ -607,7 +607,7 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                 LiteralExpr::Int(int) => {
                     l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8, n);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, int);
-                    AW_mov_stack_to_rax(&ctx.wr, idx);
+                    AW_mov_local_to_rax(&ctx.wr, idx);
                     l type = Type_new("I");
                     r ExprResult {};
                 }
@@ -618,14 +618,14 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                     } e {
                         AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 0);
                     }
-                    AW_mov_stack_to_rax(&ctx.wr, idx);
+                    AW_mov_local_to_rax(&ctx.wr, idx);
                     l type = Type_new("B");
                     r ExprResult {};
                 }
                 LiteralExpr::Char(char) => {
                     l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8, n);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, C_ord(char));
-                    AW_mov_stack_to_rax(&ctx.wr, idx);
+                    AW_mov_local_to_rax(&ctx.wr, idx);
                     l type = Type_new("C");
                     r ExprResult {};
                 }

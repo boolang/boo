@@ -270,11 +270,11 @@ f AW_create_overwritable_jump(wr: &AsmWriter) -> I {
     r offset;
 }
 
-f AW_create_overwritable_jz(wr: &AsmWriter, local_idx: I) -> I {
+// Expects condition to be in RAX
+f AW_create_overwritable_jz(wr: &AsmWriter) -> I {
     // Emit a dummy jump-if-rax-is-zero and return the index of an overwriteable jump offset
     // ba ef be ad de 80 38 00 75 02 ff e2 (cmp [rax], 0)
     // ba ef be ad de 48 83 f8 00 75 02 ff e2 (cmp rax, 0)
-    AW_mov_local_to_rax(&wr, local_idx);
     l offset = I_add(AW_idx(wr), 1);
     l code = S_concat(I_u64_to_bytes(0x003880deadbeefba), I_u32_to_bytes(0xe2ff0275));
     // l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
@@ -297,7 +297,7 @@ f AW_mov_stack_to_rax(wr: &AsmWriter, rbp_offset: I) {
 f AW_mov_local_to_rax(wr: &AsmWriter, local_idx: I) {
     //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
     l offset = AW_local_rbp_offset(wr, local_idx, 0);
-    AM_mov_stack_to_rax(&wr, I_neg(offset));
+    AW_mov_stack_to_rax(&wr, I_neg(offset));
 }
 
 f AW_push_argument_from_rax(wr: &AsmWriter) {
