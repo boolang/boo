@@ -20,6 +20,8 @@ s Ctx {
     enums: Map<Enum>,
     fns: Map<Function>,
     fn_q: Q<S>,
+    loop_breaks: V<I>,
+    loop_continue: I,
     builtin_fns: Map<BuiltinFunction>,
     constants: V<Constant>,
     wr: AsmWriter
@@ -174,6 +176,8 @@ f kompile(ast: Ast) {
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
         fn_q: Q_new<MMKey>(),
+        loop_breaks: V_new<I>(),
+        loop_continue: 0,
         builtin_fns: Map_new<BuiltinFunction>(),
         constants: V_new<Constant>(),
         wr: AsmWriter {
@@ -345,28 +349,33 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             }
         }
         Stmt::While(while) => {
-            v leave_instrs = V_new<I>();
-
-            // s WhileStmt {
-            //     condition: Expr,
-            //     stmts: V<Stmt>,
-            // }
-
-            l continue = AW_idx(ctx.wr);
+            l prev_breaks = ctx.loop_breaks;
+            ctx.loop_breaks = V_new<I>();
+            l prev_continue = ctx.loop_continue;
+            ctx.loop_continue = AW_idx(ctx.wr);
 
             l expr = kompile_expr(&ctx, while.condition);
 
-            V_push<I>(&leave_instrs, AW_create_overwritable_jz(&ctx.wr));
+            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr));
 
             kompile_block(&ctx, while.stmts);
 
-            AW_create_jump(&ctx.wr, continue);
+            AW_create_jump(&ctx.wr, ctx.loop_continue);
 
             v idx = 0;
-            w (I_lt(idx, V_len<I>(leave_instrs))) {
-                AW_overwrite_jump(&ctx.wr, V_get<I>(leave_instrs, idx), AW_idx(ctx.wr));
+            w (I_lt(idx, V_len<I>(ctx.loop_breaks))) {
+                AW_overwrite_jump(&ctx.wr, V_get<I>(ctx.loop_breaks, idx), AW_idx(ctx.wr));
                 idx = I_add(idx, 1);
             }
+
+            ctx.loop_breaks = prev_breaks;
+            ctx.loop_continue = prev_continue;
+        }
+        Stmt::Break => {
+            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jump(&ctx.wr));
+        }
+        Stmt::Continue => {
+            AW_create_jump(&ctx.wr, ctx.loop_continue);
         }
         _ => {
             print("Unsupported stmt type");
