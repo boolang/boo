@@ -737,8 +737,10 @@ impl Interpreter {
         });
 
         self.register_builtin("read", vec![("path", "S")], "S", |_, arguments| {
+            let path = arguments[0].value().as_rs_string()?;
+            println!("reading {}", path);
             Ok(Value::String(
-                std::fs::read(arguments[0].value().as_rs_string()?).unwrap(),
+                std::fs::read(path).unwrap(),
             ))
         });
 

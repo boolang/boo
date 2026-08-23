@@ -1,24 +1,50 @@
-f main() {
-    // TODO: Get target file/files from argv
-    v source_files = V_new<S>();
-    V_push<S>(&source_files, "../book/ast.boo");
-    V_push<S>(&source_files, "../book/elf.boo");
-    V_push<S>(&source_files, "../book/helper.boo");
-    V_push<S>(&source_files, "../book/ir.boo");
-    V_push<S>(&source_files, "../book/kompiler.boo");
-    V_push<S>(&source_files, "../book/lexer.boo");
-    V_push<S>(&source_files, "../book/main.boo");
-    V_push<S>(&source_files, "../book/map.boo");
-    V_push<S>(&source_files, "../book/option.boo");
-    V_push<S>(&source_files, "../book/parser.boo");
-
-    v source = "";
-    v idx = 0;
-    w (not(I_eq(idx, V_len<S>(source_files)))) {
-        source = S_concat(source, read(V_get<S>(source_files, idx)));
-        idx = I_add(idx, 1);
+f map_test() {
+    v map = Map_new<S>();
+    Map_insert<S>(&map, "a", "x");
+    Map_insert<S>(&map, "b", "y");
+    Map_insert<S>(&map, "a", "z");
+    print("a is:");
+    print(O_get<S>(Map_get<S>(map, "a")));
+    print("b is:");
+    print(O_get<S>(Map_get<S>(map, "b")));
+    i (Map_contains<S>(map, "a")) {
+        print("Map contains key 'a'");
+    } e {
+        print("Map doesn't contain key 'a'");
     }
+    i (Map_contains<S>(map, "c")) {
+        print("Map contains key 'c'");
+    } e {
+        print("Map doesn't contain key 'c'");
+    }
+}
 
-    l ast = parse(source);
-    // kompile(ast);
+f main() {
+    // l one = Expr::Literal(LiteralExpr::Int(1));
+    // v arguments = V_new<ArgumentValue>();
+    // V_push<ArgumentValue>(
+    //     &arguments,
+    //     ArgumentValue::Immutable(one)
+    // );
+    // 
+    // v stmts = V_new<Stmt>();
+    // V_push<Stmt>(&stmts, Stmt::Expr(Expr::FunctionCall(FunctionCallExpr {
+    //     ident: "exit",
+    //     generic_parameters: V_new<Type>(),
+    //     arguments: arguments
+    // })));
+
+    // v decls = V_new<Decl>();
+    // V_push<Decl>(&decls, Decl::Function(Function {
+    //     signature: FunctionSignature {
+    //         ident: "main",
+    //         generic_parameters: V_new<S>(),
+    //         parameters: V_new<Parameter>(),
+    //         ret: O_none<Type>()
+    //     },
+    //     stmts: stmts
+    // }));
+    l code = read("../ktest.boo");
+    l ast = parse(code);
+    kompile(ast);
 }
