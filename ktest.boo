@@ -1,3 +1,7 @@
+f mk_msg() -> S {
+    r "Hello, World!";
+}
+
 f main() {
     // malloc(32);
     // nop();
@@ -10,13 +14,18 @@ f main() {
     // }
     // do_exit<S>(43);
     // do_exit<I>(43);
-    check(n);
+
+    // check(y);
+    my_print(mk_msg());
     exit(0);
 }
 
+f my_print(msg: S) {
+    print(msg);
+}
+
 f check(var: B) {
-    var = y;
-    i (n) {
+    i (var) {
         print("Fizz");
     } e {
         print("Buzz");

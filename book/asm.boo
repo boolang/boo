@@ -319,10 +319,10 @@ f AW_shrink_stack(wr: &AsmWriter, sz: I) {
     // Instructions to shrink stack
     v code = "";
     v idx = 0;
-    // 0:  58      pop rax
+    // 0:  5b      pop rax
     // repeated sz times
     w (I_lt(I_mul(idx, 8), sz)) {
-        code = S_push(code, I_chr(0x58));
+        code = S_push(code, I_chr(0x5b));
         idx = I_add(idx, 1);
     }
     AW_write(&wr, code);
@@ -380,4 +380,10 @@ f AW_call(wr: &AsmWriter, symbol: MMKey) {
 
     l code = S_concat(encode_mov_rax(addr), I_u16_to_bytes(0xd0ff));
     AW_write(&wr, code);
+}
+
+f AW_ret(wr: &AsmWriter) {
+    //  0:   c9                      leave
+    //  1:   c3                      ret
+    AW_write(&wr, I_u16_to_bytes(0xc3c9));
 }

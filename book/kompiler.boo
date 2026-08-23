@@ -450,6 +450,14 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
         Stmt::Expr(expr) => {
             kompile_expr(&ctx, expr);
         }
+        Stmt::Return(return) => {
+            i (O_is_some<Expr>(return)) {
+                print("Compiling ret expr");
+                kompile_expr(&ctx, O_get<Expr>(return));
+            }
+            print("Emitting ret instr");
+            AW_ret(&ctx.wr);
+        }
         Stmt::If(if) => {
             v next_cond_instr = O_none<I>();
             v leave_instrs = V_new<I>();
@@ -568,9 +576,12 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
             };
         }
         Expr::FunctionCall(call) => {
+            l result = AW_create_heap_local(&ctx.wr, "result_tmp", 8);
             kompile_fn_call(&ctx, call);
+            AW_mov_rax_to_local(&ctx.wr, result);
             r ExprResult {
-                local: create_unit_local(&ctx),
+                local: result,
+                // TODO: Create proper type info.
                 type: Type { ident: "U", generic_parameters: V_new<Type>() },
                 size: 0
             };
