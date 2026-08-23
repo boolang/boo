@@ -228,20 +228,6 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             kompile_expr(&ctx, expr);
         }
         Stmt::If(if) => {
-            // s IfBlock {
-            //     condition: Expr,
-            //     stmts: V<Stmt>,
-            // }
-
-            // s ElseBlock {
-            //     stmts: V<Stmt>,
-            // }
-
-            // s IfStmt {
-            //     if_blocks: V<IfBlock>,
-            //     else_block: O<ElseBlock>,
-            // }
-
             v next_cond_instr = O_none<I>();
             v leave_instrs = V_new<I>();
 
@@ -270,6 +256,30 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             }
 
             idx = 0;
+            w (I_lt(idx, V_len<I>(leave_instrs))) {
+                AW_overwrite_jump(&ctx.wr, V_get<I>(leave_instrs, idx), AW_idx(ctx.wr));
+                idx = I_add(idx, 1);
+            }
+        }
+        Stmt::While(while) => {
+            v leave_instrs = V_new<I>();
+
+            // s WhileStmt {
+            //     condition: Expr,
+            //     stmts: V<Stmt>,
+            // }
+
+            l continue = AW_idx(ctx.wr);
+
+            l expr = kompile_expr(&ctx, while.condition);
+
+            V_push<I>(&leave_instrs, AW_create_overwritable_jz(&ctx.wr));
+
+            kompile_block(&ctx, while.stmts);
+
+            AW_create_jump(&ctx.wr, continue);
+
+            v idx = 0;
             w (I_lt(idx, V_len<I>(leave_instrs))) {
                 AW_overwrite_jump(&ctx.wr, V_get<I>(leave_instrs, idx), AW_idx(ctx.wr));
                 idx = I_add(idx, 1);

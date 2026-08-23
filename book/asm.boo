@@ -176,6 +176,13 @@ f AW_load_constant(wr: &AsmWriter, reg: Reg, constant_idx: I) {
     // the location of the first byte to constant_loads
 }
 
+f AW_create_jump(wr: &AsmWriter, dst_offset: I) {
+    // Emit an unconditional jump to the given offset
+    l addr = I_add(dst_offset, wr.base_addr);
+    l code = S_concat(encode_mov_rax(addr), I_u16_to_bytes(0xe0ff));
+    AW_write(&wr, code);
+}
+
 f AW_create_overwritable_jump(wr: &AsmWriter) -> I {
     // Emit a dummy jump and return the index of an overwriteable jump offset
     l offset = I_add(AW_idx(wr), 1);
