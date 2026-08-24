@@ -24,7 +24,7 @@ f main() {
     // check_both(lhs1, rhs1);
 
     v idx = 0;
-    w (not(I_eq(idx, 5))) {
+    w (I_lt(idx, 5)) {
         print("iter");
         idx = I_add(idx, 1);
     }

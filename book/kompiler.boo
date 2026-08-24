@@ -118,6 +118,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "I_eq", i_eq_params);
+    Ctx_load_builtin(&ctx, "I_lt", i_eq_params);
 
     v i_add_params = V_new<Parameter>();
     V_push<Parameter>(&i_add_params, Parameter {
