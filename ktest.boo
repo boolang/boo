@@ -1,3 +1,11 @@
+f not(val: B) -> B {
+    i (val) {
+        r n;
+    } e {
+        r y;
+    }
+}
+
 f mk_msg() -> S {
     v msg: S = "Hello, World!";
     msg = "Boo, World!";
@@ -14,6 +22,12 @@ f main() {
     // v lhs1 = y;
     // v rhs1 = n;
     // check_both(lhs1, rhs1);
+
+    v idx = 0;
+    w (not(I_eq(idx, 5))) {
+        print("iter");
+        idx = I_add(idx, 1);
+    }
 
     exit(I_add(12, 13));
 }
