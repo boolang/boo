@@ -799,7 +799,7 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
 
             l member_index = Map_find<Type>(base.type.members, member_access.member);
             i (I_eq(member_index, -1)) {
-                print(S_concat("Type '", S_concat(base.type.ident, S_concat("' has no such member: ", member_access.member))));
+                print(S_concat("Struct '", S_concat(base.type.ident, S_concat("' has no such member: ", member_access.member))));
                 exit();
             }
 
@@ -808,6 +808,36 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
             l member_type = V_get<MapEntry<Type>>(base.type.members.storage, member_index).value;
             r ExprResult {
                 type: lookup_type(ctx, member_type)
+            };
+        }
+        Expr::EnumInit(enum_init) => {
+            l type_info = lookup_type(ctx, Type_new(enum_init.ident));
+            m (type_info.kind) {
+                TypeKind::Enum => {}
+                _ => {
+                    print(S_concat("Type is not an enum (in enum init expr): ", type_info.ident));
+                    exit();
+                }
+            }
+
+            l idx = Map_find<Type>(type_info.members, enum_init.case);
+            i (I_eq(idx, -1)) {
+                print(S_concat("Enum '", S_concat(type_info.ident, S_concat("' has no such case: ", enum_init.case))));
+                exit();
+            }
+
+            l local = AW_create_heap_local(&ctx.wr, "enum_init_tmp", type_info.size);
+            // Set enum tag
+            AW_mov_constant_int_to_heap_local(&ctx.wr, local, idx);
+
+            i (O_is_some<Expr>(enum_init.value)) {
+                kompile_expr(&ctx, O_get<Expr>(enum_init.value));
+                AW_mov_rax_to_heap_local(&ctx.wr, local, 8);
+            }
+
+            AW_mov_local_to_rax(&ctx.wr, local);
+            r ExprResult {
+                type: type_info
             };
         }
         _ => {
@@ -927,7 +957,11 @@ f lookup_type(ctx: Ctx, type: Type) -> TypeInfo {
         v cases = Map_new<Type>();
         w (I_lt(idx, ncases)) {
             l case = V_get<Case>(enum.cases, idx);
-            Map_insert<Type>(&cases, case.ident, case.ty);
+            v ty = Type_new("U");
+            i (O_is_some<Type>(case.ty)) {
+                ty = O_get<Type>(case.ty);
+            }
+            Map_insert<Type>(&cases, case.ident, ty);
             idx = I_add(idx, 1);
         }
         r TypeInfo_new_enum(type.ident, cases);

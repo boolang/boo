@@ -4,9 +4,15 @@ f mk_msg() -> S {
     r msg;
 }
 
+t Occupation {
+    Student(I),
+    Teacher
+}
+
 s Person {
     name: S,
-    age: I
+    age: I,
+    occupation: Occupation
 }
 
 f main() {
@@ -53,7 +59,8 @@ f main() {
 
     l person = Person {
         name: "stackotter",
-        age: 21
+        age: 21,
+        occupation: Occupation::Student(3)
     };
     print(person.name);
 
