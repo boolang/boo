@@ -15,27 +15,29 @@ f main() {
     // v rhs1 = n;
     // check_both(lhs1, rhs1);
 
-    v idx = 16;
-    w (I_gt(idx, 0)) {
-        print("iter");
-        idx = I_udiv(idx, 2);
-    }
+    // v idx = 16;
+    // w (I_gt(idx, 0)) {
+    //     print("iter");
+    //     idx = I_udiv(idx, 2);
+    // }
 
-    v idx = 1;
-    w (I_lt(idx, 32)) {
-        print("iter");
-        idx = I_mul(idx, 2);
-    }
+    // v idx = 1;
+    // w (I_lt(idx, 32)) {
+    //     print("iter");
+    //     idx = I_mul(idx, 2);
+    // }
 
-    i (C_eq('a', 'a')) {
-        print("a == a");
-    }
+    // i (C_eq('a', 'a')) {
+    //     print("a == a");
+    // }
 
-    i (C_eq('a', 'b')) {
-        print("a == b");
-    }
+    // i (C_eq('a', 'b')) {
+    //     print("a == b");
+    // }
 
-    exit(C_ord('A'));
+    print(S_concat(S_concat("Hello", "Concat"), "!"));
+
+    exit(S_len("asdf"));
 }
 
 f check_both(lhs: B, rhs: B) {

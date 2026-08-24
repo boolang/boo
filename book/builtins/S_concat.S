@@ -6,30 +6,32 @@
     mov rsi, [rdi + 8];
     mov rdi, [rsp + 16];
     add rsi, [rdi + 8];
-    mov r11, rsi;
+    push rsi;
     ; malloc(first.size + second.size)
-    mov rdi, r11;
+    mov rdi, rsi;
     mov rax, 0x400000;
     call rax;
-    mov r9, r11;
-    mov r10, rax;
-    ; malloc(10) for the new string
+    push rax;
+    ; malloc(10) for the new string struct
     mov rdi, 0x10;
     mov rax, 0x400000;
+    call rax;
+    pop r10;
+    pop r11;
     ; buf = r10, size = first.size + second.size
     mov [rax], r10;
-    mov [rax + 8], r9;
+    mov [rax + 8], r11;
 
     ; now to actually copy..............
-    ; r9 = new string addr + offset, rsi stores first/second str + offset, rdi stores index, r10 stores len of first/second
-    mov r9, rax;
+    ; r9 = new string addr + index, rsi stores first/second str + index, rdi stores index, r10 stores len of current string being copied
+    mov r9, r10;
 
     mov rdi, [rsp + 8];
     mov r10, [rdi + 8];
+    mov rsi, [rdi];
     mov rdi, 0;
     cmp r10, 0;
     jz first_exit
-    mov rsi, [rdi];
 first_loop:
     mov rdx, [rsi];
     mov [r9], rdx;
@@ -42,10 +44,10 @@ first_exit:
 
     mov rdi, [rsp + 16];
     mov r10, [rdi + 8];
+    mov rsi, [rdi];
     mov rdi, 0;
     cmp r10, 0;
     jz second_exit
-    mov rsi, [rdi];
 second_loop:
     mov rdx, [rsi];
     mov [r9], rdx;
