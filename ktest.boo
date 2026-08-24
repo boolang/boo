@@ -5,35 +5,17 @@ f mk_msg() -> S {
 }
 
 f main() {
-    // malloc(32);
-    // nop();
-    // i (n) {
-    //     print("No");
-    // } e i (n) {
-    //     print("Yes");
-    // } e {
-    //     print("Else");
-    // }
-    // do_exit<S>(43);
-    // do_exit<I>(43);
-
-    // v msg = "Hello, World!";
-    // msg = "Boo, World!";
-    my_print(mk_msg());
-    print(mk_msg());
-
-    v lhs = "lhs";
-    v rhs = "rhs";
-    print_both(lhs, rhs);
-    v lhs1 = y;
-    v rhs1 = n;
-    check_both(lhs1, rhs1);
-
-    // v cond: B = n;
-    // cond = n;
-    // check(cond);
     // my_print(mk_msg());
-    exit(0);
+    // print(mk_msg());
+
+    // v lhs = "lhs";
+    // v rhs = "rhs";
+    // print_both(lhs, rhs);
+    // v lhs1 = y;
+    // v rhs1 = n;
+    // check_both(lhs1, rhs1);
+
+    exit(I_add(12, 13));
 }
 
 f check_both(lhs: B, rhs: B) {
@@ -70,5 +52,3 @@ f check(var: B) {
         print("Buzz");
     }
 }
-
-f nop() {}

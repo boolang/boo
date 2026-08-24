@@ -1,0 +1,6 @@
+- There are two types of built-ins; Boo-ABI builtins, and helper builtins. Helper builtins are only meant to be used by the compiler to aid with codegen (e.g. malloc and copy_contents). Helper builtins can use whatever calling convention they want (and often their ABI is just whatever was most convenient for our codegen given we were under the intense time pressure of a hackathon). Boo-ABI builtins follow the same calling convention as Boo functions compiled by the compiler.
+- Arguments for functions called with Boo-ABI (e.g. called by the user) will have each argument be a pointer to an allocation containing the value. The allocation will have been made with `malloc`
+- Return value must go in `rax`. The return value for a Boo-ABI builtin must be a pointer to the value. And the pointer must have been allocated with `malloc`.
+- If your builtin doesn't call `enter` to set up a stack frame, the first argument lives at `rsp + 8`, the second lives at `rsp + 16`, and so on
+- `malloc` lives at 0x400000
+- `malloc` clobbers a bunch of registers; make sure to push important values to the stack if you need to save them (or be very careful about which registers malloc uses)
