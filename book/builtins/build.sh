@@ -1,6 +1,6 @@
+nasm make_str.S
 nasm malloc.S
 nasm copy_content.S
-nasm make_str.S
 
 nasm exit.S
 nasm print.S
@@ -14,6 +14,7 @@ nasm I_udiv.S
 
 nasm S_concat.S
 nasm S_len.S
+nasm S_new_from_char.S
 
 nasm V_new.S
 nasm V_push.S

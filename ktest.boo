@@ -35,9 +35,11 @@ f main() {
     //     print("a == b");
     // }
 
-    print(S_concat(S_concat("Hello", "Concat"), "!"));
+    l string = S_concat(S_concat("Hello", "Concat"), "!");
+    l chars = S_concat(S_new_from_char('a'), S_new_from_char('b'));
+    print(chars);
 
-    exit(S_len("asdf"));
+    exit(0);
 }
 
 f check_both(lhs: B, rhs: B) {

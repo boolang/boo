@@ -47,6 +47,15 @@ f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
 }
 
 f Ctx_load_stdlib_builtins(ctx: &Ctx) {
+    // NOTE: These don't follow Boo ABI, they are compiler helpers
+    l empty_params = V_new<Parameter>();
+    // make_str is accessible at 0x400007 because emit_builtins will
+    // place it immediately after the hardcoded malloc jump.
+    Ctx_load_builtin(&ctx, "make_str", empty_params);
+    Ctx_load_builtin(&ctx, "copy_content", empty_params);
+
+    // Malloc is accessible at 0x400000 because emit_builtins places
+    // a jump to malloc before emitting any builtins
     v malloc_params = V_new<Parameter>();
     V_push<Parameter>(&malloc_params, Parameter {
         label: "size",
@@ -59,11 +68,6 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "malloc", malloc_params);
-
-    // NOTE: These don't follow Boo ABI, they are compiler helpers
-    l empty_params = V_new<Parameter>();
-    Ctx_load_builtin(&ctx, "make_str", empty_params);
-    Ctx_load_builtin(&ctx, "copy_content", empty_params);
 
     v exit_params = V_new<Parameter>();
     V_push<Parameter>(&exit_params, Parameter {
@@ -114,6 +118,19 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "I_neg", i_neg_params);
+
+    v s_new_from_char_params = V_new<Parameter>();
+    V_push<Parameter>(&s_new_from_char_params, Parameter {
+        label: "value",
+        ty: ArgumentType {
+            ty: Type {
+                ident: "C",
+                generic_parameters: V_new<Type>()
+            },
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params);
 
     v i_add_params = V_new<Parameter>();
     V_push<Parameter>(&i_add_params, Parameter {
@@ -364,9 +381,18 @@ f kompile(ast: Ast) {
 }
 
 f emit_builtins(ctx: &Ctx) {
+    // We want malloc at 0x400000 but we also want make_str to be predictable,
+    // so we start with a jump to malloc, then emit make_str (it's registered
+    // first), and then emit the rest of the builtins. This puts make_str
+    // at 0x400007.
+    l malloc_jump_idx = AW_create_overwritable_jump(&ctx.wr);
+
     v idx = 0;
     w (I_lt(idx, Map_count<BuiltinFunction>(ctx.builtin_fns))) {
         l entry = V_get<MapEntry<BuiltinFunction>>(ctx.builtin_fns.storage, idx);
+        i (S_eq(entry.key, "malloc")) {
+            AW_overwrite_jump(&ctx.wr, malloc_jump_idx, AW_idx(ctx.wr));
+        }
         AW_emit_builtin_function(&ctx.wr, entry.key, entry.value);
         idx = I_add(idx, 1);
     }
