@@ -474,6 +474,26 @@ f parse_expr(input: S) -> Parse<Expr> {
                         arguments: args.value
                     });
                 }
+                Token::OpenBracket => {
+                    acc = result.rest;
+                    l subscript_result = parse_expr(acc);
+                    acc = subscript_result.rest;
+                    result = next_token(acc);
+                    m (result.value) {
+                        Token::CloseBracket => {}
+                        _ => {
+                            print("Expected closing bracket ']'");
+                            exit();
+                        }
+                    }
+                    acc = result.rest;
+
+                    // TODO: Support subscripts with non-ident bases
+                    expr = Expr::Subscript(SubscriptExpr {
+                        base: Expr::Ident(ident),
+                        index: subscript_result.value
+                    });
+                }
                 Token::OpenBrace => {
                     acc = result.rest;
 

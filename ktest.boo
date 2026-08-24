@@ -35,9 +35,16 @@ f main() {
     //     print("a == b");
     // }
 
-    l string = S_concat(S_concat("Hello", "Concat"), "!");
-    l chars = S_concat(S_new_from_char('a'), S_new_from_char('b'));
-    print(chars);
+    // l string = S_concat(S_concat("Hello", "Concat"), "!");
+    // l chars = S_concat(S_new_from_char('a'), S_new_from_char('b'));
+    // print(chars);
+
+    l string = "Hello";
+    v idx = 0;
+    w (I_lt(idx, S_len(string))) {
+        print(S_new_from_char(string[idx]));
+        idx = I_add(idx, 1);
+    }
 
     exit(0);
 }

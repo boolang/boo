@@ -15,6 +15,7 @@ nasm I_udiv.S
 nasm S_concat.S
 nasm S_len.S
 nasm S_new_from_char.S
+nasm S_get.S
 
 nasm V_new.S
 nasm V_push.S

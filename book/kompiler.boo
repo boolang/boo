@@ -60,10 +60,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&malloc_params, Parameter {
         label: "size",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
@@ -110,10 +107,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&i_neg_params, Parameter {
         label: "value",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
@@ -123,23 +117,34 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&s_new_from_char_params, Parameter {
         label: "value",
         ty: ArgumentType {
-            ty: Type {
-                ident: "C",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("C"),
             mutable: n
         }
     });
     Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params);
 
+    v s_get_params = V_new<Parameter>();
+    V_push<Parameter>(&s_get_params, Parameter {
+        label: "value",
+        ty: ArgumentType {
+            ty: Type_new("S"),
+            mutable: n
+        }
+    });
+    V_push<Parameter>(&s_get_params, Parameter {
+        label: "idx",
+        ty: ArgumentType {
+            ty: Type_new("I"),
+            mutable: n
+        }
+    });
+    Ctx_load_builtin(&ctx, "S_get", s_get_params);
+
     v i_add_params = V_new<Parameter>();
     V_push<Parameter>(&i_add_params, Parameter {
         label: "first",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
@@ -163,20 +168,14 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&s_concat_params, Parameter {
         label: "first",
         ty: ArgumentType {
-            ty: Type {
-                ident: "S",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("S"),
             mutable: n
         }
     });
     V_push<Parameter>(&s_concat_params, Parameter {
         label: "second",
         ty: ArgumentType {
-            ty: Type {
-                ident: "S",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("S"),
             mutable: n
         }
     });
@@ -186,10 +185,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&s_len_params, Parameter {
         label: "first",
         ty: ArgumentType {
-            ty: Type {
-                ident: "S",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("S"),
             mutable: n
         }
     });
@@ -203,20 +199,14 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&v_push_params, Parameter {
         label: "vec",
         ty: ArgumentType {
-            ty: Type {
-                ident: "V",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("S"),
             mutable: y
         }
     });
     V_push<Parameter>(&v_push_params, Parameter {
         label: "element",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I", // TODO should be T but oh well
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"), // TODO should be T but oh well
             mutable: n
         }
     });
@@ -226,10 +216,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&v_len_params, Parameter {
         label: "vec",
         ty: ArgumentType {
-            ty: Type {
-                ident: "V",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("V"),
             mutable: y
         }
     });
@@ -239,20 +226,14 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&v_get_params, Parameter {
         label: "vec",
         ty: ArgumentType {
-            ty: Type {
-                ident: "V",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("V"),
             mutable: y
         }
     });
     V_push<Parameter>(&v_get_params, Parameter {
         label: "idx",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
@@ -262,30 +243,21 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&v_set_params, Parameter {
         label: "vec",
         ty: ArgumentType {
-            ty: Type {
-                ident: "V",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("V"),
             mutable: y
         }
     });
     V_push<Parameter>(&v_set_params, Parameter {
         label: "idx",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"),
             mutable: n
         }
     });
     V_push<Parameter>(&v_set_params, Parameter {
         label: "new_value",
         ty: ArgumentType {
-            ty: Type {
-                ident: "I", // TODO should be T but oh well
-                generic_parameters: V_new<Type>()
-            },
+            ty: Type_new("I"), // TODO should be T but oh well
             mutable: n
         }
     });
@@ -705,6 +677,14 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
                     r ExprResult {};
                 }
             }
+        }
+        Expr::Subscript(subscript) => {
+            kompile_expr(&ctx, subscript.base);
+            AW_push_argument_from_rax(&ctx.wr);
+            kompile_expr(&ctx, subscript.index);
+            AW_push_argument_from_rax(&ctx.wr);
+            AW_call(&ctx.wr, MMKey_new("S_get"));
+            r ExprResult {};
         }
         _ => {
             print("Unsupported expr type");
