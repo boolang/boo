@@ -572,25 +572,31 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             //     value: Expr,
             // }
 
-            // TODO: Move expr to rbx
             kompile_expr(&ctx, assign.value);
             l place = kompile_place(&ctx, assign.place);
 
             AW_call(&ctx.wr, MMKey_new("copy_content"));
         }
         Stmt::VarDecl(var) => {
-            i (O_is_none<Type>(var.ty)) {
-                print("Variable decl type annotations are required");
-                exit();
-            }
-            
-            l type = O_get<Type>(var.ty);
-            l sz = get_size_of_type(ctx, type);
-            l idx = AW_create_heap_local(&ctx.wr, var.ident, sz, y);
+            l idx = AW_create_local(&ctx.wr, var.ident, 8, y);
 
             v value = O_none<ExprResult>();
             i (O_is_some<Expr>(var.value)) {
                 value = O_some<ExprResult>(kompile_expr(&ctx, O_get<Expr>(var.value)));
+            } e {
+                print(S_concat("Variable declarations must have an initial value: ", var.ident));
+                exit();
+                // TODO: If we ever add back var decls with no initial value, this is
+                //   the implementation for that
+
+                // i (O_is_none<Type>(var.ty)) {
+                //     print("Variable decl type annotations are required when value not provided");
+                //     exit();
+                // }
+            
+                // l type = O_get<Type>(var.ty);
+                // l size = get_size_of_type(ctx, type);
+                // AW_malloc(&ctx.wr, size);
             }
 
             AW_mov_rax_to_local(&ctx.wr, idx);
@@ -717,7 +723,7 @@ f Type_is_heap(type: Type) -> B {
 }
 
 f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
-    l ret = AW_create_local(&ctx.wr, "ret_val_addr", 8);
+    l ret = AW_create_local(&ctx.wr, "ret_val_addr", 8, n);
 
     v idx = I_sub(V_len<ArgumentValue>(call.arguments), 1);
     w (I_ge(idx, 0)) {
@@ -739,7 +745,7 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
 }
 
 f create_unit_local(ctx: &Ctx) -> I {
-    l idx = AW_create_local(&ctx.wr, "unit", 8);
+    l idx = AW_create_local(&ctx.wr, "unit", 8, n);
     AW_mov_constant_int_to_local(&ctx.wr, idx, 0);
     r idx;
 }

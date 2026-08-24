@@ -1,5 +1,7 @@
 f mk_msg() -> S {
-    r "Hello, World!";
+    v msg: S = "Hello, World!";
+    msg = "Boo, World!";
+    r msg;
 }
 
 f main() {
@@ -15,10 +17,15 @@ f main() {
     // do_exit<S>(43);
     // do_exit<I>(43);
 
-    v cond: B = n;
-    cond = n;
-    check(cond);
-    my_print(mk_msg());
+    v msg = "Hello, World!";
+    msg = "Boo, World!";
+    my_print(msg);
+    print(msg);
+
+    // v cond: B = n;
+    // cond = n;
+    // check(cond);
+    // my_print(mk_msg());
     exit(0);
 }
 

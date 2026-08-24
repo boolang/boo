@@ -103,7 +103,7 @@ f AW_finalize_function(wr: &AsmWriter) {
 
 f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {
     // Add to locals and return the local index
-    l local = AW_create_local(&wr, name, size);
+    l local = AW_create_local(&wr, name, size, n);
     //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
     l offset = I_mul(idx, 8);
     v code = I_u16_to_bytes(0x8b48);
@@ -114,7 +114,7 @@ f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {
     r local;
 }
 
-f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
+f AW_create_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
     // Add to locals and return the local index
     v offset = 0;
     l local_count = V_len<Local>(wr.locals);
@@ -128,6 +128,10 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
         offset: offset
     };
     V_push<Local>(&wr.locals, local);
+
+    i (is_named) {
+        Map_insert<I>(&wr.local_map, name, local_count);
+    }
     r local_count;
 }
 
@@ -135,12 +139,9 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
 // if false the name is just for debugging purposes (e.g. an internal
 // temporary variable).
 f AW_create_heap_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
-    l idx = AW_create_local(&wr, name, 8);
+    l idx = AW_create_local(&wr, name, 8, is_named);
     AW_malloc(&wr, size);
     AW_mov_rax_to_local(&wr, idx);
-    i (is_named) {
-        Map_insert<I>(&wr.local_map, name, idx);
-    }
     r idx;
 }
 
