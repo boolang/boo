@@ -25,7 +25,6 @@ s Ctx {
     enums: Map<Enum>,
     fns: Map<Function>,
     fn_q: Q<S>,
-    locals: Map<Local>,
     loop_breaks: V<I>,
     loop_continue: I,
     builtin_fns: Map<BuiltinFunction>,
@@ -317,7 +316,6 @@ f kompile(ast: Ast) {
         enums: Map_new<Enum>(),
         fns: Map_new<Function>(),
         fn_q: Q_new<MMKey>(),
-        locals: Map_new<LocalVar>(),
         loop_breaks: V_new<I>(),
         loop_continue: 0,
         builtin_fns: Map_new<BuiltinFunction>(),
@@ -449,11 +447,17 @@ t FunctionLocal {
 f resolve_ident(ctx: Ctx, ident: S) -> FunctionLocal {
     l local_lookup = Map_get<I>(ctx.wr.local_map, ident);
     i (O_is_some<I>(local_lookup)) {
+        print(S_concat("Found local: ", ident));
+        print(S_concat("  Index: ", I_to_string(O_get<I>(local_lookup))));
+        print(S_concat("  Instr offset: ", I_to_string(AW_idx(ctx.wr))));
         r FunctionLocal::Local(O_get<I>(local_lookup));
     }
 
     l arg_lookup = Map_get<I>(ctx.fn_args, ident);
     i (O_is_some<I>(arg_lookup)) {
+        print(S_concat("Found arg: ", ident));
+        print(S_concat("  Index: ", I_to_string(O_get<I>(arg_lookup))));
+        print(S_concat("  Instr offset: ", I_to_string(AW_idx(ctx.wr))));
         r FunctionLocal::Argument(O_get<I>(arg_lookup));
     }
 
@@ -462,10 +466,9 @@ f resolve_ident(ctx: Ctx, ident: S) -> FunctionLocal {
 }
 
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
-    l prev_locals = ctx.locals;
     ctx.fn_args = Map_new<I>();
 
-    AW_emit_dummy_function_prelude(&ctx.wr, fn.key);
+    AW_begin_function(&ctx.wr, fn.key);
 
     v idx = 0;
     w (I_lt(idx, V_len<Parameter>(fn.parameters))) {
@@ -476,7 +479,6 @@ f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
 
     kompile_block(&ctx, fn.stmts);
     AW_finalize_function(&ctx.wr);
-    ctx.locals = prev_locals;
 }
 
 f kompile_block(ctx: &Ctx, block: V<Stmt>) {
@@ -514,8 +516,6 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
                 }
 
                 l expr = kompile_expr(&ctx, block.condition);
-
-                // TODO: expr.local doesn't exist anymore, result is pointer to by rax
                 next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr));
 
                 kompile_block(&ctx, block.stmts);
@@ -660,6 +660,7 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
         Expr::Ident(ident) => {
             l local = resolve_ident(ctx, ident);
             l offset = fn_local_to_rbp_offset(local);
+            print(S_concat(S_concat(S_concat("Offset for ident ", ident), " is "), I_to_string(offset)));
             AW_mov_stack_to_rax(&ctx.wr, offset);
             r ExprResult {};
         }

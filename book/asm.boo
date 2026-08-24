@@ -53,7 +53,7 @@ f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
     }
 }
 
-f AW_emit_dummy_function_prelude(wr: &AsmWriter, key: MMKey) {
+f AW_begin_function(wr: &AsmWriter, key: MMKey) {
     l fn_idx = AW_idx(wr);
 
     // Fill in pending jumps
@@ -79,6 +79,8 @@ f AW_emit_dummy_function_prelude(wr: &AsmWriter, key: MMKey) {
     code = S_concat(code, I_u16_to_bytes(0x4141));
     code = S_push(code, I_chr(0));
     wr.function_prelude_location = I_add(fn_idx, 1);
+    wr.local_map = Map_new<I>();
+    wr.locals = V_new<Local>();
     AW_write(&wr, code);
 }
 
