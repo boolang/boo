@@ -1,5 +1,6 @@
 s BuiltinFunction {
     params: V<Parameter>,
+    ret_type: Type,
     asm: S
 }
 
@@ -29,18 +30,23 @@ s Ctx {
     loop_continue: I,
     builtin_fns: Map<BuiltinFunction>,
     constants: V<Constant>,
-    // Maps arg name to arg index
-    fn_args: Map<I>,
     wr: AsmWriter,
-    types: Map<TypeInfo>,
     // Map from builtin type names sizes
-    builtin_types: Map<I>,
+    builtin_types: Map<BuiltinType>,
+    // Maps idents to function locals (includes both locals and args)
+    locals: Map<FunctionLocal>
 }
 
-f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>) {
+s BuiltinType {
+    size: I,
+    n_type_parameters: I
+}
+
+f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>, ret_type: Type) {
     l asm = read(S_concat("builtins/", ident));
     l builtin = BuiltinFunction {
         params: params,
+        ret_type: ret_type,
         asm: asm
     };
     Map_insert<BuiltinFunction>(&ctx.builtin_fns, ident, builtin);
@@ -51,8 +57,8 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     l empty_params = V_new<Parameter>();
     // make_str is accessible at 0x400007 because emit_builtins will
     // place it immediately after the hardcoded malloc jump.
-    Ctx_load_builtin(&ctx, "make_str", empty_params);
-    Ctx_load_builtin(&ctx, "copy_content", empty_params);
+    Ctx_load_builtin(&ctx, "make_str", empty_params, Type_new("U"));
+    Ctx_load_builtin(&ctx, "copy_content", empty_params, Type_new("U"));
 
     // Malloc is accessible at 0x400000 because emit_builtins places
     // a jump to malloc before emitting any builtins
@@ -64,7 +70,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "malloc", malloc_params);
+    Ctx_load_builtin(&ctx, "malloc", malloc_params, Type_new("U"));
 
     v exit_params = V_new<Parameter>();
     V_push<Parameter>(&exit_params, Parameter {
@@ -74,7 +80,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "exit", exit_params);
+    Ctx_load_builtin(&ctx, "exit", exit_params, Type_new("U"));
 
     v print_params = V_new<Parameter>();
     V_push<Parameter>(&print_params, Parameter {
@@ -84,7 +90,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "print", print_params);
+    Ctx_load_builtin(&ctx, "print", print_params, Type_new("U"));
 
     v read_count_params = V_new<Parameter>();
     V_push<Parameter>(&read_count_params, Parameter {
@@ -101,7 +107,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "read_count", read_count_params);
+    Ctx_load_builtin(&ctx, "read_count", read_count_params, Type_new("S"));
 
     v i_neg_params = V_new<Parameter>();
     V_push<Parameter>(&i_neg_params, Parameter {
@@ -111,7 +117,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "I_neg", i_neg_params);
+    Ctx_load_builtin(&ctx, "I_neg", i_neg_params, Type_new("I"));
 
     v s_new_from_char_params = V_new<Parameter>();
     V_push<Parameter>(&s_new_from_char_params, Parameter {
@@ -121,7 +127,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params);
+    Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params, Type_new("S"));
 
     v s_get_params = V_new<Parameter>();
     V_push<Parameter>(&s_get_params, Parameter {
@@ -138,7 +144,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "S_get", s_get_params);
+    Ctx_load_builtin(&ctx, "S_get", s_get_params, Type_new("C"));
 
     v i_add_params = V_new<Parameter>();
     V_push<Parameter>(&i_add_params, Parameter {
@@ -158,11 +164,11 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "I_add", i_add_params);
-    Ctx_load_builtin(&ctx, "I_mul", i_add_params);
-    Ctx_load_builtin(&ctx, "I_eq", i_add_params);
-    Ctx_load_builtin(&ctx, "I_lt", i_add_params);
-    Ctx_load_builtin(&ctx, "I_udiv", i_add_params);
+    Ctx_load_builtin(&ctx, "I_add", i_add_params, Type_new("I"));
+    Ctx_load_builtin(&ctx, "I_mul", i_add_params, Type_new("I"));
+    Ctx_load_builtin(&ctx, "I_eq", i_add_params, Type_new("I"));
+    Ctx_load_builtin(&ctx, "I_lt", i_add_params, Type_new("I"));
+    Ctx_load_builtin(&ctx, "I_udiv", i_add_params, Type_new("I"));
 
     v s_concat_params = V_new<Parameter>();
     V_push<Parameter>(&s_concat_params, Parameter {
@@ -179,7 +185,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "S_concat", s_concat_params);
+    Ctx_load_builtin(&ctx, "S_concat", s_concat_params, Type_new("S"));
 
     v s_len_params = V_new<Parameter>();
     V_push<Parameter>(&s_len_params, Parameter {
@@ -189,11 +195,12 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "S_len", s_len_params);
+    Ctx_load_builtin(&ctx, "S_len", s_len_params, Type_new("I"));
 
     // vec ops
     v v_new_params = V_new<Parameter>();
-    Ctx_load_builtin(&ctx, "V_new", v_new_params);
+    // TODO: Encode generic return type
+    Ctx_load_builtin(&ctx, "V_new", v_new_params, Type_new("V"));
 
     v v_push_params = V_new<Parameter>();
     V_push<Parameter>(&v_push_params, Parameter {
@@ -210,7 +217,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "V_push", v_push_params);
+    Ctx_load_builtin(&ctx, "V_push", v_push_params, Type_new("U"));
 
     v v_len_params = V_new<Parameter>();
     V_push<Parameter>(&v_len_params, Parameter {
@@ -220,7 +227,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: y
         }
     });
-    Ctx_load_builtin(&ctx, "V_len", v_len_params);
+    Ctx_load_builtin(&ctx, "V_len", v_len_params, Type_new("I"));
 
     v v_get_params = V_new<Parameter>();
     V_push<Parameter>(&v_get_params, Parameter {
@@ -237,7 +244,7 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "V_get", v_get_params);
+    Ctx_load_builtin(&ctx, "V_get", v_get_params, Type_new("T"));
 
     v v_set_params = V_new<Parameter>();
     V_push<Parameter>(&v_set_params, Parameter {
@@ -261,21 +268,71 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
             mutable: n
         }
     });
-    Ctx_load_builtin(&ctx, "V_set", v_set_params);
+    Ctx_load_builtin(&ctx, "V_set", v_set_params, Type_new("U"));
+}
+
+f ExprResult_new_builtin(simple_type: S, size: I) -> ExprResult {
+    r ExprResult {
+        type: TypeInfo_new_builtin(simple_type, size)
+    };
+}
+
+f TypeInfo_new_builtin(ident: S, size: I) -> TypeInfo {
+    r TypeInfo {
+        ident: ident,
+        size: size,
+        kind: TypeKind::Builtin,
+        members: Map_new<Type>()
+    };
+}
+
+f TypeInfo_new_struct(ident: S, fields: Map<Type>) -> TypeInfo {
+    r TypeInfo {
+        ident: ident,
+        size: I_mul(Map_count<Type>(fields), 8),
+        kind: TypeKind::Struct,
+        members: fields
+    };
+}
+
+f TypeInfo_new_enum(ident: S, cases: Map<Type>) -> TypeInfo {
+    r TypeInfo {
+        ident: ident,
+        size: 16, // tag + value pointer
+        kind: TypeKind::Enum,
+        members: cases
+    };
+}
+
+t TypeKind {
+    Builtin,
+    Struct,
+    Enum
 }
 
 s TypeInfo {
-    size: I
+    ident: S,
+    size: I,
+    kind: TypeKind,
+    // Either fields or members depending on kind
+    members: Map<Type>,
+}
+
+f BuiltinType_new(size: I, n_type_parameters: I) -> BuiltinType {
+    r BuiltinType {
+        size: size,
+        n_type_parameters: n_type_parameters
+    };
 }
 
 f kompile(ast: Ast) {
-    v builtin_types = Map_new<I>();
-    Map_insert<I>(&builtin_types, "C", 8);
-    Map_insert<I>(&builtin_types, "U", 8);
-    Map_insert<I>(&builtin_types, "I", 8);
-    Map_insert<I>(&builtin_types, "B", 8);
-    Map_insert<I>(&builtin_types, "S", 16);
-    Map_insert<I>(&builtin_types, "V", 16);
+    v builtin_types = Map_new<BuiltinType>();
+    Map_insert<BuiltinType>(&builtin_types, "C", BuiltinType_new(8, 0));
+    Map_insert<BuiltinType>(&builtin_types, "U", BuiltinType_new(8, 0));
+    Map_insert<BuiltinType>(&builtin_types, "I", BuiltinType_new(8, 0));
+    Map_insert<BuiltinType>(&builtin_types, "B", BuiltinType_new(8, 0));
+    Map_insert<BuiltinType>(&builtin_types, "S", BuiltinType_new(16, 0));
+    Map_insert<BuiltinType>(&builtin_types, "V", BuiltinType_new(16, 1));
 
     v ctx = Ctx {
         structs: Map_new<Struct>(),
@@ -286,18 +343,16 @@ f kompile(ast: Ast) {
         loop_continue: 0,
         builtin_fns: Map_new<BuiltinFunction>(),
         constants: V_new<Constant>(),
-        fn_args: Map_new<I>(),
         wr: AsmWriter {
             base_addr: 0x400000,
             buf: "",
             jumps: MMap_new<I>(),
             pending_jumps: MMap_new<V<I>>(),
             function_prelude_location: -1,
-            locals: V_new<Local>(),
-            local_map: Map_new<I>()
+            locals: V_new<Local>()
         },
-        types: Map_new<TypeInfo>(),
-        builtin_types: builtin_types
+        builtin_types: builtin_types,
+        locals: Map_new<FunctionLocal>()
     };
 
     Ctx_load_stdlib_builtins(&ctx);
@@ -308,12 +363,9 @@ f kompile(ast: Ast) {
         m (decl) {
             Decl::Struct(struct) => {
                 Map_insert<Struct>(&ctx.structs, struct.ident, struct);
-                l info = TypeInfo { size: I_mul(V_len<Field>(struct.fields), 8) };
-                Map_insert<TypeInfo>(&ctx.types, struct.ident, info);
             }
             Decl::Enum(enum) => {
                 Map_insert<Enum>(&ctx.enums, enum.ident, enum);
-                // TODO: Register type info in ctx.types
             }
             Decl::Function(function) => {
                 Map_insert<Function>(&ctx.fns, function.signature.ident, function);
@@ -336,7 +388,7 @@ f kompile(ast: Ast) {
     v fn = Q_pop<MMKey>(&ctx.fn_q);
     w (O_is_some<MMKey>(fn)) {
         l key = O_get<MMKey>(fn);
-        l fn_ast = instantiate_fn(&ctx, key);
+        l fn_ast = instantiate_fn(ctx, key);
         i (O_is_some<FunctionInstance>(fn_ast)) {
             print(S_concat("Kompiling function ", key.ident));
             kompile_fn(&ctx, O_get<FunctionInstance>(fn_ast));
@@ -370,7 +422,7 @@ f emit_builtins(ctx: &Ctx) {
     }
 }
 
-f instantiate_fn(ctx: &Ctx, key: MMKey) -> O<FunctionInstance> {
+f instantiate_fn(ctx: Ctx, key: MMKey) -> O<FunctionInstance> {
     l fn_ast = Map_get<Function>(ctx.fns, key.ident);
     i (O_is_none<Function>(fn_ast)) {
         r O_none<FunctionInstance>();
@@ -387,12 +439,32 @@ f instantiate_fn(ctx: &Ctx, key: MMKey) -> O<FunctionInstance> {
         idx = I_add(idx, 1);
     }
 
+    v ret_type = O_none<Type>();
+    i (O_is_some<Type>(fn.signature.ret)) {
+        ret_type = instantiate_type(fn.signature.ret, fn.signature.generic_parameters, key.generic_args);
+    }
+
     r O_some<FunctionInstance>(FunctionInstance {
         key: key,
         parameters: new_params,
-        ret: fn.signature.ret,
+        ret: ret_type,
         stmts: fn.stmts
     });
+}
+
+f get_fn_return_type(ctx: Ctx, key: MMKey) -> TypeInfo {
+    l lookup = Map_get<Function>(ctx.fns, key.ident);
+    i (O_is_none<Function>(fn)) {
+        print(S_concat("No such function: ", key.ident));
+        exit();
+    }
+    l fn = O_get<Function>(lookup);
+    l ret_type = instantiate_type(
+        fn.signature.ret,
+        fn.signature.generic_parameters,
+        key.generic_args
+    );
+    r lookup_type(ctx, ret_type);
 }
 
 f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
@@ -414,41 +486,40 @@ f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
     r new_type;
 }
 
-t FunctionLocal {
-    Local(I),
-    Argument(I)
+t FunctionLocalKind {
+    Local,
+    Argument
 }
 
-f resolve_ident(ctx: Ctx, ident: S) -> FunctionLocal {
-    l local_lookup = Map_get<I>(ctx.wr.local_map, ident);
-    i (O_is_some<I>(local_lookup)) {
-        print(S_concat("Found local: ", ident));
-        print(S_concat("  Index: ", I_to_string(O_get<I>(local_lookup))));
-        print(S_concat("  Instr offset: ", I_to_string(AW_idx(ctx.wr))));
-        r FunctionLocal::Local(O_get<I>(local_lookup));
-    }
+s FunctionLocal {
+    kind: FunctionLocalKind,
+    // The index of the argument index or local index
+    index: I,
+    type: TypeInfo
+}
 
-    l arg_lookup = Map_get<I>(ctx.fn_args, ident);
-    i (O_is_some<I>(arg_lookup)) {
-        print(S_concat("Found arg: ", ident));
-        print(S_concat("  Index: ", I_to_string(O_get<I>(arg_lookup))));
-        print(S_concat("  Instr offset: ", I_to_string(AW_idx(ctx.wr))));
-        r FunctionLocal::Argument(O_get<I>(arg_lookup));
+f resolve_local(ctx: Ctx, ident: S) -> FunctionLocal {
+    l lookup = Map_get<FunctionLocal>(ctx.locals, ident);
+    i (O_is_none<FunctionLocal>(lookup)) {
+        print(S_concat("No such local: ", ident));
+        exit();
     }
-
-    print(S_concat("No such local/arg: ", ident));
-    exit();
+    r O_get<FunctionLocal>(lookup);
 }
 
 f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
-    ctx.fn_args = Map_new<I>();
+    ctx.locals = Map_new<FunctionLocal>();
 
     AW_begin_function(&ctx.wr, fn.key);
 
     v idx = 0;
     w (I_lt(idx, V_len<Parameter>(fn.parameters))) {
         l parameter = V_get<Parameter>(fn.parameters, idx);
-        Map_insert<I>(&ctx.fn_args, parameter.label, idx);
+        Map_insert<I>(&ctx.locals, parameter.label, FunctionLocal {
+            kind: FunctionLocalKind::Argument,
+            index: idx,
+            type: lookup_type(ctx, parameter.type)
+        });
         idx = I_add(idx, 1);
     }
 
@@ -553,12 +624,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
             AW_call(&ctx.wr, MMKey_new("copy_content"));
         }
         Stmt::VarDecl(var) => {
-            l idx = AW_create_local(&ctx.wr, var.ident, 8, y);
-
-            v value = O_none<ExprResult>();
-            i (O_is_some<Expr>(var.value)) {
-                value = O_some<ExprResult>(kompile_expr(&ctx, O_get<Expr>(var.value)));
-            } e {
+            i (O_is_none<Expr>(var.value)) {
                 print(S_concat("Variable declarations must have an initial value: ", var.ident));
                 exit();
                 // TODO: If we ever add back var decls with no initial value, this is
@@ -574,7 +640,15 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
                 // AW_malloc(&ctx.wr, size);
             }
 
+            l idx = AW_create_local(&ctx.wr, var.ident, 8);
+            l value = kompile_expr(&ctx, O_get<Expr>(var.value));
             AW_mov_rax_to_local(&ctx.wr, idx);
+
+            Map_insert<FunctionLocal>(&ctx.locals, var.ident, FunctionLocal {
+                kind: FunctionLocalKind::Local,
+                index: idx,
+                type: value.type
+            });
         }
         _ => {
             print("Unsupported stmt type");
@@ -583,34 +657,23 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 }
 
 f get_size_of_type(ctx: Ctx, type: Type) -> I {
-    l builtin_lookup = Map_get<I>(ctx.builtin_types, type.ident);
-    i (O_is_some<I>(builtin_lookup)) {
-        r O_get<I>(builtin_lookup);
-    }
-
-    l lookup = Map_get<TypeInfo>(ctx.types, type.ident);
-    i (O_is_none<TypeInfo>(lookup)) {
-        print(S_concat(S_concat("Assuming that ", type.ident), " is a type parameter"));
-        r 8;
-    }
-
-    l info = O_get<TypeInfo>(lookup);
-    r info.size;
+    r lookup_type(ctx, type).size;
 }
 
-// Used to be used, but emptied it to find all of the now incorrect
-// usages of it. Expr results are now stored in rax.
 s ExprResult {
+    type: TypeInfo
 }
 
 // Puts a place in rbx and doesn't clobber rax
 f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
     m (expr) {
         PlaceExpr::Ident(ident) => {
-            l local = resolve_ident(ctx, ident);
+            l local = resolve_local(ctx, ident);
             l rbp_offset = fn_local_to_rbp_offset(local);
             AW_mov_stack_to_rbx(&ctx.wr, rbp_offset);
-            r ExprResult {};
+            r ExprResult {
+                type: local.type
+            };
         }
         _ => {
             print("Unsupported expr type");
@@ -620,12 +683,12 @@ f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
 }
 
 f fn_local_to_rbp_offset(local: FunctionLocal) -> I {
-    m (local) {
-        FunctionLocal::Local(idx) => {
-            r I_neg(I_add(I_mul(idx, 8), 8));
+    m (local.kind) {
+        FunctionLocalKind::Local => {
+            r I_neg(I_add(I_mul(local.index, 8), 8));
         }
-        FunctionLocal::Argument(idx) => {
-            r I_add(I_mul(idx, 8), 16);
+        FunctionLocalKind::Argument => {
+            r I_add(I_mul(local.index, 8), 16);
         }
     }
 }
@@ -633,48 +696,45 @@ f fn_local_to_rbp_offset(local: FunctionLocal) -> I {
 f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
     m (expr) {
         Expr::Ident(ident) => {
-            l local = resolve_ident(ctx, ident);
+            l local = resolve_local(ctx, ident);
             l offset = fn_local_to_rbp_offset(local);
             print(S_concat(S_concat(S_concat("Offset for ident ", ident), " is "), I_to_string(offset)));
             AW_mov_stack_to_rax(&ctx.wr, offset);
-            r ExprResult {};
+            r ExprResult {
+                type: local.type
+            };
         }
         Expr::FunctionCall(call) => {
-            l result = AW_create_heap_local(&ctx.wr, "result_tmp", 8, n);
-            kompile_fn_call(&ctx, call);
-            r ExprResult {};
+            r kompile_fn_call(&ctx, call);
         }
         Expr::Literal(literal) => {
             m (literal) {
                 LiteralExpr::Int(int) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8, n);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_int_lit", 8);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, int);
                     AW_mov_local_to_rax(&ctx.wr, idx);
-                    l type = Type_new("I");
-                    r ExprResult {};
+                    r ExprResult_new_builtin("I", 8);
                 }
                 LiteralExpr::Bool(bool) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_bool_lit", 8, n);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_bool_lit", 8);
                     i (bool) {
                         AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 1);
                     } e {
                         AW_mov_constant_int_to_heap_local(&ctx.wr, idx, 0);
                     }
                     AW_mov_local_to_rax(&ctx.wr, idx);
-                    l type = Type_new("B");
-                    r ExprResult {};
+                    r ExprResult_new_builtin("B", 8);
                 }
                 LiteralExpr::Char(char) => {
-                    l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8, n);
+                    l idx = AW_create_heap_local(&ctx.wr, "tmp_char_lit", 8);
                     AW_mov_constant_int_to_heap_local(&ctx.wr, idx, C_ord(char));
                     AW_mov_local_to_rax(&ctx.wr, idx);
-                    l type = Type_new("C");
-                    r ExprResult {};
+                    r ExprResult_new_builtin("C", 8);
                 }
                 LiteralExpr::String(string) => {
                     AW_make_string(&ctx.wr, string);
                     l type = Type_new("S");
-                    r ExprResult {};
+                    r ExprResult_new_builtin("S", 16);
                 }
             }
         }
@@ -685,6 +745,70 @@ f kompile_expr(ctx: &Ctx, expr: Expr) -> ExprResult {
             AW_push_argument_from_rax(&ctx.wr);
             AW_call(&ctx.wr, MMKey_new("S_get"));
             r ExprResult {};
+        }
+        Expr::StructInit(struct_init) => {
+            l lookup = Map_get<Struct>(ctx.structs, struct_init.ident);
+            i (O_is_none<Struct>(lookup)) {
+                print(S_concat("No such struct ", struct_init.ident));
+                exit();
+            }
+            l struct = O_get<Struct>(lookup);
+            l nfields = V_len<Field>(struct.fields);
+            l nargs = V_len<StructInitArgument>(struct_init.arguments);
+            i (not(I_eq(nfields, nargs))) {
+                print(S_concat("Struct ", S_concat(struct.ident, S_concat(" has ", S_concat( I_to_string(nfields), S_concat(" arguments, got ", I_to_string(nargs)))))));
+                exit();
+            }
+
+            l sz = I_mul(nfields, 8);
+            l local = AW_create_heap_local(&ctx.wr, "struct_init_tmp", sz);
+
+            v idx = 0;
+            w (I_lt(idx, nargs)) {
+                l arg = V_get<StructInitArgument>(struct_init.arguments, idx);
+                l field = V_get<Field>(struct.fields, idx);
+                i (not(S_eq(arg.label, field.ident))) {
+                    print(S_concat("Struct ", S_concat(struct.ident, S_concat(" has a field called ", S_concat(field.ident, S_concat(", got ", arg.label))))));
+                    exit();
+                }
+                kompile_expr(&ctx, arg.value);
+
+                AW_mov_rax_to_heap_local(&ctx.wr, local, I_mul(idx, 8));
+                
+                idx = I_add(idx, 1);
+            }
+
+            AW_mov_local_to_rax(&ctx.wr, local);
+
+            r ExprResult {
+                type: lookup_type(ctx, Type {
+                    ident: struct_init.ident,
+                    generic_parameters: struct_init.generic_parameters
+                })
+            };
+        }
+        Expr::MemberAccess(member_access) => {
+            l base = kompile_expr(&ctx, member_access.base);
+            m (base.type.kind) {
+                TypeKind::Struct => {}
+                _ => {
+                    print(S_concat("Attempted to access member of non-struct type: ", base.type.ident));
+                    exit();
+                }
+            }
+
+            l member_index = Map_find<Type>(base.type.members, member_access.member);
+            i (I_eq(member_index, -1)) {
+                print(S_concat("Type '", S_concat(base.type.ident, S_concat("' has no such member: ", member_access.member))));
+                exit();
+            }
+
+            AW_deref_rax(&ctx.wr, I_mul(member_index, 8));
+
+            l member_type = V_get<MapEntry<Type>>(base.type.members.storage, member_index).value;
+            r ExprResult {
+                type: lookup_type(ctx, member_type)
+            };
         }
         _ => {
             print("Unsupported expr type");
@@ -706,9 +830,7 @@ f Type_is_heap(type: Type) -> B {
     r S_eq(heap.ident, "H");
 }
 
-f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
-    l ret = AW_create_local(&ctx.wr, "ret_val_addr", 8, n);
-
+f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) {
     v idx = I_sub(V_len<ArgumentValue>(call.arguments), 1);
     w (I_ge(idx, 0)) {
         l arg = V_get<ArgumentValue>(call.arguments, idx);
@@ -724,30 +846,26 @@ f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
         }
         idx = I_sub(idx, 1);
     }
-   
-    r ExprResult {};
 }
 
 f create_unit_local(ctx: &Ctx) -> I {
-    l idx = AW_create_local(&ctx.wr, "unit", 8, n);
+    l idx = AW_create_local(&ctx.wr, "unit", 8);
     AW_mov_constant_int_to_local(&ctx.wr, idx, 0);
     r idx;
 }
 
 f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
-    l expr_result = prepare_fn_call_args(&ctx, call);
+    prepare_fn_call_args(&ctx, call);
 
+    v expr_result = ExprResult {
+        type: TypeInfo_new_builtin("U", 8) // dummy value
+    };
     l maybe_fn = Map_get<Function>(ctx.fns, call.ident);
     i (O_is_none<Function>(maybe_fn)) {
-        kompile_builtin_fn_call(&ctx, call);
+        expr_result.type = kompile_builtin_fn_call(&ctx, call);
     } e {
         l fn = O_get<Function>(maybe_fn);
         l nparams = V_len<Parameter>(fn.signature.parameters);
-        print("Function call");
-        print(call.ident);
-        print("Function has this many arguments");
-        print(I_to_string(nparams));
-
         l nargs = V_len<ArgumentValue>(call.arguments);
         i (not(I_eq(nparams, nargs))) {
             print("Error in function:");
@@ -762,6 +880,7 @@ f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
         l key = MMKey { ident: call.ident, generic_args: call.generic_parameters };
         AW_call(&ctx.wr, key);
         queue_fn(&ctx, key);
+        expr_result.type = get_fn_return_type(ctx, key);
     }
 
     l nargs = V_len<ArgumentValue>(call.arguments);
@@ -775,6 +894,47 @@ f queue_fn(ctx: &Ctx, fn: MMKey) {
         r;
     }
     Q_push<MMKey>(&ctx.fn_q, fn);
+}
+
+f lookup_type(ctx: Ctx, type: Type) -> TypeInfo {
+    l builtin_lookup = Map_get<BuiltinType>(ctx.builtin_types, type.ident);
+    i (O_is_some<BuiltinType>(builtin_lookup)) {
+        l builtin = O_get<BuiltinType>(builtin_lookup);
+        r TypeInfo_new_builtin(type.ident, builtin.size);
+    }
+
+    l struct_lookup = Map_get<Struct>(ctx.structs, type.ident);
+    i (O_is_some<Struct>(struct_lookup)) {
+        l struct = O_get<Struct>(struct_lookup);
+        l nfields = V_len<Field>(struct.fields);
+        v idx = 0;
+        v fields = Map_new<Type>();
+        w (I_lt(idx, nfields)) {
+            l field = V_get<Field>(struct.fields, idx);
+            // TODO: Replace generic parameters present in the field's type with
+            //   the generic parameters in struct.generic_parameters
+            Map_insert<Type>(&fields, field.ident, field.ty);
+            idx = I_add(idx, 1);
+        }
+        r TypeInfo_new_struct(type.ident, fields);
+    }
+
+    l enum_lookup = Map_get<Enum>(ctx.enums, type.ident);
+    i (O_is_some<Enum>(enum_lookup)) {
+        l enum = O_get<Enum>(enum_lookup);
+        l ncases = V_len<Case>(enum.cases);
+        v idx = 0;
+        v cases = Map_new<Type>();
+        w (I_lt(idx, ncases)) {
+            l case = V_get<Case>(enum.cases, idx);
+            Map_insert<Type>(&cases, case.ident, case.ty);
+            idx = I_add(idx, 1);
+        }
+        r TypeInfo_new_enum(type.ident, cases);
+    }
+
+    print(S_concat("No such type ", type.ident));
+    exit();
 }
 
 f resolve_type(ctx: Ctx, type: Type) -> Type {
@@ -818,28 +978,27 @@ f Type_eq(self: Type, other: Type) -> B {
     );
 }
 
-f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) {
+f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> TypeInfo {
     l maybe_fn = Map_get<BuiltinFunction>(ctx.builtin_fns, call.ident);
     i (O_is_none<BuiltinFunction>(maybe_fn)) {
         print(S_concat("Function does not exist with ident: ", call.ident));
         exit();
-    } e {
-        l fn = O_get<BuiltinFunction>(maybe_fn);
-        print("Function has this many arguments");
-        print(I_to_string(V_len<Parameter>(fn.params)));
-
-        l nparams = V_len<Parameter>(fn.params);
-        l nargs = V_len<ArgumentValue>(call.arguments);
-        i (not(I_eq(nparams, nargs))) {
-            print("Error in function:");
-            print(call.ident);
-            print("Invalid number of function params, expected:");
-            print(I_to_string(nparams));
-            print("But got");
-            print(I_to_string(nargs));
-            exit();
-        }
-
-        AW_call(&ctx.wr, MMKey { ident: call.ident, generic_args: V_new<Type>() });
     }
+
+    l fn = O_get<BuiltinFunction>(maybe_fn);
+    l nparams = V_len<Parameter>(fn.params);
+    l nargs = V_len<ArgumentValue>(call.arguments);
+    i (not(I_eq(nparams, nargs))) {
+        print("Error in function:");
+        print(call.ident);
+        print("Invalid number of function params, expected:");
+        print(I_to_string(nparams));
+        print("But got");
+        print(I_to_string(nargs));
+        exit();
+    }
+
+    AW_call(&ctx.wr, MMKey { ident: call.ident, generic_args: V_new<Type>() });
+
+    r lookup_type(ctx, fn.ret_type);
 }

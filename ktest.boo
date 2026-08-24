@@ -4,6 +4,11 @@ f mk_msg() -> S {
     r msg;
 }
 
+s Person {
+    name: S,
+    age: I
+}
+
 f main() {
     // my_print(mk_msg());
     // print(mk_msg());
@@ -39,14 +44,20 @@ f main() {
     // l chars = S_concat(S_new_from_char('a'), S_new_from_char('b'));
     // print(chars);
 
-    l string = "Hello";
-    v idx = 0;
-    w (I_lt(idx, S_len(string))) {
-        print(S_new_from_char(string[idx]));
-        idx = I_add(idx, 1);
-    }
+    // l string = "Hello";
+    // v idx = 0;
+    // w (I_lt(idx, S_len(string))) {
+    //     print(S_new_from_char(string[idx]));
+    //     idx = I_add(idx, 1);
+    // }
 
-    exit(0);
+    l person = Person {
+        name: "stackotter",
+        age: 21
+    };
+    print(person.name);
+
+    exit(person.age);
 }
 
 f check_both(lhs: B, rhs: B) {

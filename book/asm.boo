@@ -17,8 +17,6 @@ s AsmWriter {
     pending_jumps: MMap<V<I>>,
     function_prelude_location: I,
     locals: V<Local>,
-    // Map from idents to corresponding locals
-    local_map: Map<I>,
 }
 
 f AW_idx(wr: AsmWriter) -> I {
@@ -30,9 +28,6 @@ f AW_write(wr: &AsmWriter, data: S) {
 }
 
 f AW_emit_builtin_function(wr: &AsmWriter, ident: S, fn: BuiltinFunction) {
-    wr.locals = V_new<Local>();
-    wr.local_map = Map_new<I>();
-
     l fn_idx = AW_idx(wr);
     MMap_insert<I>(&wr.jumps, MMKey { ident: ident, generic_args: V_new<Type>() }, fn_idx);
     AW_write(&wr, fn.asm);
@@ -79,7 +74,6 @@ f AW_begin_function(wr: &AsmWriter, key: MMKey) {
     code = S_concat(code, I_u16_to_bytes(0x4141));
     code = S_push(code, I_chr(0));
     wr.function_prelude_location = I_add(fn_idx, 1);
-    wr.local_map = Map_new<I>();
     wr.locals = V_new<Local>();
     AW_write(&wr, code);
 }
@@ -105,7 +99,7 @@ f AW_finalize_function(wr: &AsmWriter) {
 
 f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {
     // Add to locals and return the local index
-    l local = AW_create_local(&wr, name, size, n);
+    l local = AW_create_local(&wr, name, size);
     //  0:   48 8b 85 99 98 ff ff    mov    -0x6767(%rbp),%rax
     l offset = I_mul(idx, 8);
     v code = I_u16_to_bytes(0x8b48);
@@ -116,7 +110,7 @@ f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {
     r local;
 }
 
-f AW_create_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
+f AW_create_local(wr: &AsmWriter, name: S, size: I) -> I {
     // Add to locals and return the local index
     v offset = 0;
     l local_count = V_len<Local>(wr.locals);
@@ -131,17 +125,11 @@ f AW_create_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
     };
     V_push<Local>(&wr.locals, local);
 
-    i (is_named) {
-        Map_insert<I>(&wr.local_map, name, local_count);
-    }
     r local_count;
 }
 
-// is_named is whether the user can refer to the variable by the name,
-// if false the name is just for debugging purposes (e.g. an internal
-// temporary variable).
-f AW_create_heap_local(wr: &AsmWriter, name: S, size: I, is_named: B) -> I {
-    l idx = AW_create_local(&wr, name, 8, is_named);
+f AW_create_heap_local(wr: &AsmWriter, name: S, size: I) -> I {
+    l idx = AW_create_local(&wr, name, 8);
     AW_malloc(&wr, size);
     AW_mov_rax_to_local(&wr, idx);
     r idx;
@@ -198,6 +186,26 @@ f AW_mov_rax_to_local(wr: &AsmWriter, dst_idx: I) {
     v code = I_u16_to_bytes(0x8948);
     code = S_push(code, I_chr(0x85));
     code = S_concat(code, I_i32_to_bytes(I_neg(offset)));
+    AW_write(&wr, code);
+}
+
+f AW_mov_rax_to_heap_local(wr: &AsmWriter, dst_idx: I, dst_offset: I) {
+    //  0:   48 8b 9d ff ff 44 44    mov    0x4444ffff(%rbp),%rbx
+    AW_mov_local_to_rbx(&wr, dst_idx);
+
+    //  7:   48 89 83 55 55 55 55    mov    %rax,0x55555555(%rbx)
+    v code = I_u16_to_bytes(0x8948);
+    code = S_push(code, I_chr(0x83));
+    code = S_concat(code, I_i32_to_bytes(dst_offset));
+    AW_write(&wr, code);
+}
+
+// Assuming that rax holds a pointer, add a constant offset to the pointer and deref it
+f AW_deref_rax(wr: &AsmWriter, offset: I) {
+    //  0:   48 8b 80 42 42 41 41    mov    0x41414242(%rax),%rax
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x80));
+    code = S_concat(code, I_i32_to_bytes(offset));
     AW_write(&wr, code);
 }
 
