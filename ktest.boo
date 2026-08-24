@@ -1,11 +1,3 @@
-f not(val: B) -> B {
-    i (val) {
-        r n;
-    } e {
-        r y;
-    }
-}
-
 f mk_msg() -> S {
     v msg: S = "Hello, World!";
     msg = "Boo, World!";
@@ -23,13 +15,27 @@ f main() {
     // v rhs1 = n;
     // check_both(lhs1, rhs1);
 
-    v idx = 0;
-    w (I_lt(idx, 5)) {
+    v idx = 16;
+    w (I_gt(idx, 0)) {
         print("iter");
-        idx = I_add(idx, 1);
+        idx = I_udiv(idx, 2);
     }
 
-    exit(I_add(12, 13));
+    v idx = 1;
+    w (I_lt(idx, 32)) {
+        print("iter");
+        idx = I_mul(idx, 2);
+    }
+
+    i (C_eq('a', 'a')) {
+        print("a == a");
+    }
+
+    i (C_eq('a', 'b')) {
+        print("a == b");
+    }
+
+    exit(C_ord('A'));
 }
 
 f check_both(lhs: B, rhs: B) {

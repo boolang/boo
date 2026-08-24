@@ -44,7 +44,8 @@ f main() {
     //     },
     //     stmts: stmts
     // }));
-    l code = read("../ktest.boo");
+    v code = read("builtins/stdlib.boo");
+    code = S_concat(read("../ktest.boo"), code);
     l ast = parse(code);
     kompile(ast);
 }

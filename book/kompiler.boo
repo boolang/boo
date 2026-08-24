@@ -102,23 +102,18 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     });
     Ctx_load_builtin(&ctx, "read_count", read_count_params);
 
-    v i_eq_params = V_new<Parameter>();
-    V_push<Parameter>(&i_eq_params, Parameter {
-        label: "first",
+    v i_neg_params = V_new<Parameter>();
+    V_push<Parameter>(&i_neg_params, Parameter {
+        label: "value",
         ty: ArgumentType {
-            ty: Type_new("I"),
+            ty: Type {
+                ident: "I",
+                generic_parameters: V_new<Type>()
+            },
             mutable: n
         }
     });
-    V_push<Parameter>(&i_eq_params, Parameter {
-        label: "second",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "I_eq", i_eq_params);
-    Ctx_load_builtin(&ctx, "I_lt", i_eq_params);
+    Ctx_load_builtin(&ctx, "I_neg", i_neg_params);
 
     v i_add_params = V_new<Parameter>();
     V_push<Parameter>(&i_add_params, Parameter {
@@ -142,29 +137,10 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
         }
     });
     Ctx_load_builtin(&ctx, "I_add", i_add_params);
-
-    v i_udiv_params = V_new<Parameter>();
-    V_push<Parameter>(&i_udiv_params, Parameter {
-        label: "first",
-        ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&i_udiv_params, Parameter {
-        label: "second",
-        ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "I_udiv", i_udiv_params);
+    Ctx_load_builtin(&ctx, "I_mul", i_add_params);
+    Ctx_load_builtin(&ctx, "I_eq", i_add_params);
+    Ctx_load_builtin(&ctx, "I_lt", i_add_params);
+    Ctx_load_builtin(&ctx, "I_udiv", i_add_params);
 
     v s_concat_params = V_new<Parameter>();
     V_push<Parameter>(&s_concat_params, Parameter {

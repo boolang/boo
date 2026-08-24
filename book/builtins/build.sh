@@ -5,7 +5,9 @@ nasm make_str.S
 nasm exit.S
 nasm print.S
 
+nasm I_neg.S
 nasm I_add.S
+nasm I_mul.S
 nasm I_eq.S
 nasm I_lt.S
 nasm I_udiv.S
