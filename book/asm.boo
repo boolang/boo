@@ -282,14 +282,40 @@ f AW_create_overwritable_jump(wr: &AsmWriter) -> I {
     r offset;
 }
 
-// Expects condition to be in RAX
-f AW_create_overwritable_jz(wr: &AsmWriter) -> I {
+f AW_mov_uconst_to_rbx(wr: &AsmWriter, value: I) {
+    //  0:   48 bb ef be ad de ef    movabs $0xdeadbeefdeadbeef,%rbx
+    //  7:   be ad de
+    l code = S_concat(I_u16_to_bytes(0xbb48), I_u64_to_bytes(value));
+    AW_write(&wr, code);
+}
+
+f AW_cmp_rax_to_uconst(wr: &AsmWriter, value: I) {
+    //  a:   48 39 d8                cmp    %rbx,%rax
+    AW_mov_uconst_to_rbx(&wr, value);
+    l code = S_concat(I_u16_to_bytes(0x3948), S_new_from_char(I_chr(0xd8)));
+    AW_write(&wr, code);
+}
+
+// Expects condition to be pointed to by RAX (hence 'deref')
+f AW_create_overwritable_rax_jz_deref(wr: &AsmWriter) -> I {
     // Emit a dummy jump-if-rax-is-zero and return the index of an overwriteable jump offset
     // ba ef be ad de 80 38 00 75 02 ff e2 (cmp [rax], 0)
     // ba ef be ad de 48 83 f8 00 75 02 ff e2 (cmp rax, 0)
     l offset = I_add(AW_idx(wr), 1);
     l code = S_concat(I_u64_to_bytes(0x003880deadbeefba), I_u32_to_bytes(0xe2ff0275));
     // l code = S_push(S_concat(I_u64_to_bytes(0xf88348deadbeefba), I_u32_to_bytes(0xff027500)), I_chr(0xe2));
+    AW_write(&wr, code);
+    r offset;
+}
+
+// Expects comparison to already have been done (unlike AW_create_overwritable_rax_jz_deref which also derefs rax and performs a cmp)
+f AW_create_overwritable_jnz(wr: &AsmWriter) -> I {
+    // Emit a dummy jump-if-rax-is-not-zero and return the index of an overwriteable jump offset
+    //  0:   ba ef be ad de          mov    $0xdeadbeef,%edx
+    //  5:   74 02                   je     0x9
+    //  7:   ff e2                   jmp    *%rdx
+    l offset = I_add(AW_idx(wr), 1);
+    l code = S_concat(I_u64_to_bytes(0xff027467676767ba), S_new_from_char(I_chr(0xe2)));
     AW_write(&wr, code);
     r offset;
 }

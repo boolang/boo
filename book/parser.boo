@@ -339,7 +339,7 @@ f parse_case_block(input: S) -> Parse<CaseBlock> {
     l case = parse_ident(acc);
     acc = case.rest;
 
-    v binding = O_none<S>();
+    v binding = O_none<Binding>();
     v result = next_token(acc);
     m (result.value) {
         Token::OpenPar => {
@@ -347,7 +347,11 @@ f parse_case_block(input: S) -> Parse<CaseBlock> {
             l binding_r = parse_ident(acc);
             acc = binding_r.rest;
             acc = next_token(acc).rest; // ClosePar
-            binding = O_some<S>(binding_r.value);
+            i (S_eq(binding_r.value, "_")) {
+                binding = O_some<Binding>(Binding::Underscore);
+            } e {
+                binding = O_some<Binding>(Binding::Ident(binding_r.value));
+            }
         }
     }
 

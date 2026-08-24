@@ -57,14 +57,26 @@ f main() {
     //     idx = I_add(idx, 1);
     // }
 
-    l person = Person {
-        name: "stackotter",
-        age: 21,
-        occupation: Occupation::Student(3)
-    };
-    print(person.name);
+    // l person = Person {
+    //     name: "stackotter",
+    //     age: 21,
+    //     occupation: Occupation::Student(3)
+    // };
+    // print(person.name);
 
-    exit(person.age);
+    l occupation = Occupation::Student(3);
+    m (occupation) {
+        Occupation::Student(year) => {
+            print(S_concat("Student is in year ", S_new_from_char(I_chr(I_add(year, 48)))));
+        }
+        Occupation::Teacher => {
+            print("They are a teacher");
+        }
+    }
+
+    print("after match");
+    exit(0);
+    // exit(person.age);
 }
 
 f check_both(lhs: B, rhs: B) {

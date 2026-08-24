@@ -441,7 +441,7 @@ f instantiate_fn(ctx: Ctx, key: MMKey) -> O<FunctionInstance> {
 
     v ret_type = O_none<Type>();
     i (O_is_some<Type>(fn.signature.ret)) {
-        ret_type = instantiate_type(fn.signature.ret, fn.signature.generic_parameters, key.generic_args);
+        ret_type = O_some<Type>(instantiate_type(O_get<Type>(fn.signature.ret), fn.signature.generic_parameters, key.generic_args));
     }
 
     r O_some<FunctionInstance>(FunctionInstance {
@@ -454,13 +454,17 @@ f instantiate_fn(ctx: Ctx, key: MMKey) -> O<FunctionInstance> {
 
 f get_fn_return_type(ctx: Ctx, key: MMKey) -> TypeInfo {
     l lookup = Map_get<Function>(ctx.fns, key.ident);
-    i (O_is_none<Function>(fn)) {
+    i (O_is_none<Function>(lookup)) {
         print(S_concat("No such function: ", key.ident));
         exit();
     }
     l fn = O_get<Function>(lookup);
+    v ret = Type_new("U");
+    i (O_is_some<Type>(fn.signature.ret)) {
+        ret = O_get<Type>(fn.signature.ret);
+    }
     l ret_type = instantiate_type(
-        fn.signature.ret,
+        ret,
         fn.signature.generic_parameters,
         key.generic_args
     );
@@ -515,10 +519,10 @@ f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
     v idx = 0;
     w (I_lt(idx, V_len<Parameter>(fn.parameters))) {
         l parameter = V_get<Parameter>(fn.parameters, idx);
-        Map_insert<I>(&ctx.locals, parameter.label, FunctionLocal {
+        Map_insert<FunctionLocal>(&ctx.locals, parameter.label, FunctionLocal {
             kind: FunctionLocalKind::Argument,
             index: idx,
-            type: lookup_type(ctx, parameter.type)
+            type: lookup_type(ctx, parameter.ty.ty)
         });
         idx = I_add(idx, 1);
     }
@@ -562,7 +566,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
                 }
 
                 l expr = kompile_expr(&ctx, block.condition);
-                next_cond_instr = O_some<I>(AW_create_overwritable_jz(&ctx.wr));
+                next_cond_instr = O_some<I>(AW_create_overwritable_rax_jz_deref(&ctx.wr));
 
                 kompile_block(&ctx, block.stmts);
 
@@ -591,7 +595,7 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
 
             l expr = kompile_expr(&ctx, while.condition);
 
-            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_jz(&ctx.wr));
+            V_push<I>(&ctx.loop_breaks, AW_create_overwritable_rax_jz_deref(&ctx.wr));
 
             kompile_block(&ctx, while.stmts);
 
@@ -650,8 +654,97 @@ f kompile_stmt(ctx: &Ctx, stmt: Stmt) {
                 type: value.type
             });
         }
+        Stmt::Match(match) => {
+            l local = AW_create_local(&ctx.wr, "match_value_tmp", 8);
+            l inner_local = AW_create_local(&ctx.wr, "match_value_tmp_inner", 8);
+            l value = kompile_expr(&ctx, match.value);
+            AW_mov_rax_to_local(&ctx.wr, local);
+
+            // Place enum case associated value in separate local
+            AW_deref_rax(&ctx.wr, 8);
+            AW_mov_rax_to_local(&ctx.wr, inner_local);
+
+            // Place enum tag in rax
+            AW_mov_local_to_rax(&ctx.wr, local);
+            AW_deref_rax(&ctx.wr, 0);
+
+            m (value.type.kind) {
+                TypeKind::Enum => {}
+                _ => {
+                    print(S_concat("Match expected enum, got: ", value.type.ident));
+                    exit();
+                }
+            }
+
+            // The following code has been copied from IfStmt and updated for matches.
+            // There's a lot of duplicated code here...
+
+            v next_cond_instr = O_none<I>();
+            v leave_instrs = V_new<I>();
+
+            v idx = 0;
+            w (I_lt(idx, V_len<CaseBlock>(match.case_blocks))) {
+                l block = V_get<CaseBlock>(match.case_blocks, idx);
+                i (O_is_some<I>(next_cond_instr)) {
+                    AW_overwrite_jump(&ctx.wr, O_get<I>(next_cond_instr), AW_idx(ctx.wr));
+                }
+
+                i (not(S_eq(block.pattern.ident, value.type.ident))) {
+                    print("Match statement case type mismatch");
+                    exit();
+                }
+
+                l case_idx = Map_find<Type>(value.type.members, block.pattern.case);
+                i (I_eq(case_idx, -1)) {
+                    print(S_concat("Unknown enum case: ", block.pattern.case));
+                    exit();
+                }
+
+                AW_cmp_rax_to_uconst(&ctx.wr, case_idx);
+                next_cond_instr = O_some<I>(AW_create_overwritable_jnz(&ctx.wr));
+
+                v pop_local = n;
+                i (O_is_some<Binding>(block.pattern.binding)) {
+                    l binding = O_get<Binding>(block.pattern.binding);
+                    m (binding) {
+                        Binding::Underscore => {}
+                        Binding::Ident(inner_ident) => {
+                            pop_local = y;
+                            l member_type = V_get<MapEntry<Type>>(value.type.members.storage, case_idx).value;
+                            Map_insert<FunctionLocal>(&ctx.locals, inner_ident, FunctionLocal {
+                                kind: FunctionLocalKind::Local,
+                                index: inner_local,
+                                type: lookup_type(ctx, member_type)
+                            });
+                        }
+                    }
+                }
+                kompile_block(&ctx, block.stmts);
+
+                i (pop_local) {
+                    Map_pop<FunctionLocal>(&ctx.locals);
+                }
+
+                V_push<I>(&leave_instrs, AW_create_overwritable_jump(&ctx.wr));
+
+                idx = I_add(idx, 1);
+            }
+
+            AW_overwrite_jump(&ctx.wr, O_get<I>(next_cond_instr), AW_idx(ctx.wr));
+
+            i (O_is_some<V<Stmt>>(match.default_block)) {
+                kompile_block(&ctx, O_get<V<Stmt>>(match.default_block));
+            }
+
+            idx = 0;
+            w (I_lt(idx, V_len<I>(leave_instrs))) {
+                AW_overwrite_jump(&ctx.wr, V_get<I>(leave_instrs, idx), AW_idx(ctx.wr));
+                idx = I_add(idx, 1);
+            }
+        }
         _ => {
             print("Unsupported stmt type");
+            exit();
         }
     }
 }

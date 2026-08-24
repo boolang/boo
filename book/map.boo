@@ -5,18 +5,20 @@ s MapEntry<Value> {
 
 s Map<Value> {
     storage: V<MapEntry<Value>>,
+    count: I
 }
 
 f Map_new<U>() -> Map<U> {
     l storage = V_new<MapEntry<U>>();
     l map = Map<U> {
-        storage: storage
+        storage: storage,
+        count: 0
     };
     r map;
 }
 
 f Map_count<T>(map: Map<T>) -> I {
-    r V_len<MapEntry<T>>(map.storage);
+    r map.count;
 }
 
 f Map_insert<T>(map: &Map<T>, key: S, value: T) {
@@ -26,10 +28,19 @@ f Map_insert<T>(map: &Map<T>, key: S, value: T) {
         value: value
     };
     i (I_lt(idx, 0)) {
-        V_push<MapEntry<T>>(&map.storage, entry);
+        i (I_lt(map.count, V_len<MapEntry<T>>(map.storage))) {
+            V_set<MapEntry<T>>(&map.storage, map.count, entry);
+        } e {
+            V_push<MapEntry<T>>(&map.storage, entry);
+        }
+        map.count = I_add(map.count, 1);
     } e {
         V_set<MapEntry<T>>(&map.storage, idx, entry);
     }
+}
+
+f Map_pop<T>(map: &Map<T>) {
+    map.count = I_sub(map.count, 1);
 }
 
 f Map_get<T>(map: Map<T>, key: S) -> O<T> {
@@ -48,7 +59,7 @@ f Map_contains<T>(map: Map<T>, key: S) -> B {
 
 f Map_find<T>(map: Map<T>, key: S) -> I {
     v idx = 0;
-    w (I_lt(idx, V_len<MapEntry<T>>(map.storage))) {
+    w (I_lt(idx, map.count)) {
         i (S_eq(key, V_get<MapEntry<T>>(map.storage, idx).key)) {
             r idx;
         }
