@@ -1,3 +1,33 @@
+// Probably only works for non-negative integers
+f I_mod(value: I, modulus: I) -> I {
+    r I_sub(value, I_mul(I_udiv(value, modulus), modulus));
+}
+
+f I_to_string(value: I) -> S {
+    i (I_eq(value, 0)) {
+        r "0";
+    }
+
+    l is_negative = I_lt(value, 0);
+
+    v out = "";
+    v rest = value;
+    i (is_negative) {
+        rest = I_neg(rest);
+    }
+    w (not(I_eq(rest, 0))) {
+        out = S_concat(S_new_from_char(I_chr(I_add(48, I_mod(rest, 10)))), out);
+        rest = I_udiv(rest, 10);
+    }
+    
+    i (is_negative) {
+        print("negative");
+        out = S_concat("-", out);
+    }
+
+    r out;
+}
+
 f not(val: B) -> B {
     i (val) {
         r n;

@@ -16,6 +16,7 @@ s Person {
 }
 
 f main() {
+    print(I_to_string(I_add(1, -2)));
     v vec = V_new<S>();
     V_push<S>(&vec, "A");
     V_push<S>(&vec, "B");
@@ -26,12 +27,13 @@ f main() {
 
     v person = Person {
         name: "stackotter",
-        age: 21,
+        age: -21,
         occupation: Occupation::Teacher
     };
     person.name = "bpaul";
     print(person.name);
-    // print(S_new_from_char(I_chr(I_add(V_len<S>(vec), 48))));
+    print(I_to_string(person.age));
+    print(S_new_from_char(I_chr(I_add(V_len<S>(vec), 48))));
 
     // my_print(mk_msg());
     // print(mk_msg());
