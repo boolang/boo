@@ -221,6 +221,15 @@ f AW_deref_rax(wr: &AsmWriter, offset: I) {
     AW_write(&wr, code);
 }
 
+// Assuming that rbx holds a pointer, add a constant offset to the pointer and deref it
+f AW_deref_rbx(wr: &AsmWriter, offset: I) {
+    //  0:   48 8b 9b 42 42 41 41    mov    0x41414242(%rbx),%rbx
+    v code = I_u16_to_bytes(0x8b48);
+    code = S_push(code, I_chr(0x9b));
+    code = S_concat(code, I_i32_to_bytes(offset));
+    AW_write(&wr, code);
+}
+
 f AW_str_literal_to_rdi(wr: &AsmWriter, literal: S) {
     // 0:   48 8d 3d 05 00 00 00    lea    0x5(%rip),%rdi        # 0xc
     // 7:   e9 00 01 00 00          jmp    0x10c

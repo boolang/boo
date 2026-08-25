@@ -654,9 +654,27 @@ f kompile_place(ctx: &Ctx, expr: PlaceExpr) -> ExprResult {
                 type: local.type
             };
         }
-        _ => {
-            print("Unsupported expr type");
-            exit();
+        PlaceExpr::Member(member) => {
+            l base = kompile_place(&ctx, member.base);
+            m (base.type.kind) {
+                TypeKind::Struct => {}
+                _ => {
+                    print(S_concat("Expected struct target for member assigment, got: ", base.type.ident));
+                    exit();
+                }
+            }
+            l member_idx = Map_find<Type>(base.type.members, member.member);
+            i (I_eq(member_idx, -1)) {
+                print(S_concat("No such member: ", member.member));
+                exit();
+            }
+
+            AW_deref_rbx(&ctx.wr, I_mul(member_idx, 8));
+
+            l member_type = V_get<MapEntry<Type>>(base.type.members.storage, member_idx).value;
+            r ExprResult {
+                type: lookup_type(ctx, member_type)
+            };
         }
     }
 }

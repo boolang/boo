@@ -23,6 +23,14 @@ f main() {
     print(V_get<S>(vec, 0));
     print(V_get<S>(vec, 1));
     print(V_get<S>(vec, 2));
+
+    v person = Person {
+        name: "stackotter",
+        age: 21,
+        occupation: Occupation::Teacher
+    };
+    person.name = "bpaul";
+    print(person.name);
     // print(S_new_from_char(I_chr(I_add(V_len<S>(vec), 48))));
 
     // my_print(mk_msg());
