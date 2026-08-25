@@ -5,7 +5,6 @@
 
 [BITS 64]
     ; r9 now stores the buffer address
-    mov rdi, 32;
     mov rsi, rdi;
     lea r9, [rel buf];
     ; PLEASE nasm make this a relative jump PLEASE
