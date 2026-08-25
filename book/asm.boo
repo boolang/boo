@@ -78,7 +78,7 @@ f AW_begin_function(wr: &AsmWriter, key: MMKey) {
     AW_write(&wr, code);
 }
 
-f AW_finalize_function(wr: &AsmWriter) {
+f AW_finalize_function(wr: &AsmWriter, is_main: B) {
     // Add up 'locals' to figure out stack frame size. Emit function prelude
     // to function_prelude_location
     v frame_size = 0;
@@ -90,11 +90,23 @@ f AW_finalize_function(wr: &AsmWriter) {
 
     S_set_range(&wr.buf, wr.function_prelude_location, I_u16_to_bytes(frame_size));
 
-    //  0:   c9                      leave
-    //  1:   c3                      ret
-    AW_write(&wr, I_u16_to_bytes(0xc3c9));
+    i (is_main) {
+        AW_exit(&wr, 0);
+    } e {
+        //  0:   c9                      leave
+        //  1:   c3                      ret
+        AW_write(&wr, I_u16_to_bytes(0xc3c9));
+    }
 
     wr.locals = V_new<Local>();
+}
+
+f AW_exit(wr: &AsmWriter, status: I) {
+    l idx = AW_create_heap_local(&wr, "exit_status", 8);
+    AW_mov_constant_int_to_heap_local(&wr, idx, status);
+    AW_mov_local_to_rax(&wr, idx);
+    AW_push_argument_from_rax(&wr);
+    AW_call(&wr, MMKey_new("exit"));
 }
 
 f AW_create_arg_local(wr: &AsmWriter, name: S, idx: I, size: I) -> I {

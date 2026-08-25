@@ -1,5 +1,6 @@
 s BuiltinFunction {
     params: V<Parameter>,
+    generic_parameters: V<S>,
     ret_type: Type,
     asm: S
 }
@@ -43,9 +44,14 @@ s BuiltinType {
 }
 
 f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>, ret_type: Type) {
+    Ctx_load_builtin_full(&ctx, ident, params, V_new<S>(), ret_type);
+}
+
+f Ctx_load_builtin_full(ctx: &Ctx, ident: S, params: V<Parameter>, generic_parameters: V<S>, ret_type: Type) {
     l asm = read(S_concat("builtins/", ident));
     l builtin = BuiltinFunction {
         params: params,
+        generic_parameters: generic_parameters,
         ret_type: ret_type,
         asm: asm
     };
@@ -53,222 +59,95 @@ f Ctx_load_builtin(ctx: &Ctx, ident: S, params: V<Parameter>, ret_type: Type) {
 }
 
 f Ctx_load_stdlib_builtins(ctx: &Ctx) {
-    // NOTE: These don't follow Boo ABI, they are compiler helpers
     l empty_params = V_new<Parameter>();
+    l unit = Type_new("U");
+    l string = Type_new("S");
+    l int = Type_new("I");
+    l char = Type_new("C");
+    l bool = Type_new("B");
+    v generic_params_t = V_new<S>();
+    V_push<S>(&generic_params_t, "T");
+    l v_t = Type_new_generic1("V", "T");
+
+    // NOTE: These don't follow Boo ABI, they are compiler helpers
     // make_str is accessible at 0x400007 because emit_builtins will
     // place it immediately after the hardcoded malloc jump.
-    Ctx_load_builtin(&ctx, "make_str", empty_params, Type_new("U"));
-    Ctx_load_builtin(&ctx, "copy_content", empty_params, Type_new("U"));
+    Ctx_load_builtin(&ctx, "make_str", empty_params, unit);
+    Ctx_load_builtin(&ctx, "copy_content", empty_params, unit);
 
     // Malloc is accessible at 0x400000 because emit_builtins places
     // a jump to malloc before emitting any builtins
     v malloc_params = V_new<Parameter>();
-    V_push<Parameter>(&malloc_params, Parameter {
-        label: "size",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "malloc", malloc_params, Type_new("U"));
+    V_push<Parameter>(&malloc_params, Parameter_new("size", "I", n));
+    Ctx_load_builtin(&ctx, "malloc", malloc_params, unit);
 
     v exit_params = V_new<Parameter>();
-    V_push<Parameter>(&exit_params, Parameter {
-        label: "status",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "exit", exit_params, Type_new("U"));
+    V_push<Parameter>(&exit_params, Parameter_new("status", "I", n));
+    Ctx_load_builtin(&ctx, "exit", exit_params, unit);
 
     v print_params = V_new<Parameter>();
-    V_push<Parameter>(&print_params, Parameter {
-        label: "msg",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "print", print_params, Type_new("U"));
+    V_push<Parameter>(&print_params, Parameter_new("msg", "S", n));
+    Ctx_load_builtin(&ctx, "print", print_params, unit);
 
     v read_count_params = V_new<Parameter>();
-    V_push<Parameter>(&read_count_params, Parameter {
-        label: "path",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&read_count_params, Parameter {
-        label: "count",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "read_count", read_count_params, Type_new("S"));
+    V_push<Parameter>(&read_count_params, Parameter_new("path", "S", n));
+    V_push<Parameter>(&read_count_params, Parameter_new("count", "I", n));
+    Ctx_load_builtin(&ctx, "read_count", read_count_params, string);
 
     v i_neg_params = V_new<Parameter>();
-    V_push<Parameter>(&i_neg_params, Parameter {
-        label: "value",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "I_neg", i_neg_params, Type_new("I"));
+    V_push<Parameter>(&i_neg_params, Parameter_new("value", "I", n));
+    Ctx_load_builtin(&ctx, "I_neg", i_neg_params, int);
 
     v s_new_from_char_params = V_new<Parameter>();
-    V_push<Parameter>(&s_new_from_char_params, Parameter {
-        label: "value",
-        ty: ArgumentType {
-            ty: Type_new("C"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params, Type_new("S"));
+    V_push<Parameter>(&s_new_from_char_params, Parameter_new("value", "C", n));
+    Ctx_load_builtin(&ctx, "S_new_from_char", s_new_from_char_params, string);
 
     v s_get_params = V_new<Parameter>();
-    V_push<Parameter>(&s_get_params, Parameter {
-        label: "value",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&s_get_params, Parameter {
-        label: "idx",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "S_get", s_get_params, Type_new("C"));
+    V_push<Parameter>(&s_get_params, Parameter_new("value", "S", n));
+    V_push<Parameter>(&s_get_params, Parameter_new("idx", "I", n));
+    Ctx_load_builtin(&ctx, "S_get", s_get_params, char);
 
-    v i_add_params = V_new<Parameter>();
-    V_push<Parameter>(&i_add_params, Parameter {
-        label: "first",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&i_add_params, Parameter {
-        label: "second",
-        ty: ArgumentType {
-            ty: Type {
-                ident: "I",
-                generic_parameters: V_new<Type>()
-            },
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "I_add", i_add_params, Type_new("I"));
-    Ctx_load_builtin(&ctx, "I_mul", i_add_params, Type_new("I"));
-    Ctx_load_builtin(&ctx, "I_eq", i_add_params, Type_new("I"));
-    Ctx_load_builtin(&ctx, "I_lt", i_add_params, Type_new("I"));
-    Ctx_load_builtin(&ctx, "I_udiv", i_add_params, Type_new("I"));
+    v ii_params = V_new<Parameter>();
+    V_push<Parameter>(&ii_params, Parameter_new("first", "I", n));
+    V_push<Parameter>(&ii_params, Parameter_new("second", "I", n));
+    Ctx_load_builtin(&ctx, "I_add", ii_params, int);
+    Ctx_load_builtin(&ctx, "I_mul", ii_params, int);
+    Ctx_load_builtin(&ctx, "I_eq", ii_params, int);
+    Ctx_load_builtin(&ctx, "I_lt", ii_params, int);
+    Ctx_load_builtin(&ctx, "I_udiv", ii_params, int);
 
     v s_concat_params = V_new<Parameter>();
-    V_push<Parameter>(&s_concat_params, Parameter {
-        label: "first",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&s_concat_params, Parameter {
-        label: "second",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "S_concat", s_concat_params, Type_new("S"));
+    V_push<Parameter>(&s_concat_params, Parameter_new("first", "S", n));
+    V_push<Parameter>(&s_concat_params, Parameter_new("second", "S", n));
+    Ctx_load_builtin(&ctx, "S_concat", s_concat_params, string);
 
     v s_len_params = V_new<Parameter>();
-    V_push<Parameter>(&s_len_params, Parameter {
-        label: "first",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "S_len", s_len_params, Type_new("I"));
+    V_push<Parameter>(&s_len_params, Parameter_new("first", "S", n));
+    Ctx_load_builtin(&ctx, "S_len", s_len_params, int);
 
     // vec ops
     v v_new_params = V_new<Parameter>();
-    // TODO: Encode generic return type
-    Ctx_load_builtin(&ctx, "V_new", v_new_params, Type_new("V"));
+    Ctx_load_builtin_full(&ctx, "V_new", v_new_params, generic_params_t, v_t);
 
     v v_push_params = V_new<Parameter>();
-    V_push<Parameter>(&v_push_params, Parameter {
-        label: "vec",
-        ty: ArgumentType {
-            ty: Type_new("S"),
-            mutable: y
-        }
-    });
-    V_push<Parameter>(&v_push_params, Parameter {
-        label: "element",
-        ty: ArgumentType {
-            ty: Type_new("I"), // TODO should be T but oh well
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "V_push", v_push_params, Type_new("U"));
+    V_push<Parameter>(&v_push_params, Parameter_new_full("vec", v_t, y));
+    V_push<Parameter>(&v_push_params, Parameter_new("element", "T", n));
+    Ctx_load_builtin_full(&ctx, "V_push", v_push_params, generic_params_t, unit);
 
     v v_len_params = V_new<Parameter>();
-    V_push<Parameter>(&v_len_params, Parameter {
-        label: "vec",
-        ty: ArgumentType {
-            ty: Type_new("V"),
-            mutable: y
-        }
-    });
-    Ctx_load_builtin(&ctx, "V_len", v_len_params, Type_new("I"));
+    V_push<Parameter>(&v_len_params, Parameter_new_full("vec", v_t, n));
+    Ctx_load_builtin_full(&ctx, "V_len", v_len_params, generic_params_t, int);
 
     v v_get_params = V_new<Parameter>();
-    V_push<Parameter>(&v_get_params, Parameter {
-        label: "vec",
-        ty: ArgumentType {
-            ty: Type_new("V"),
-            mutable: y
-        }
-    });
-    V_push<Parameter>(&v_get_params, Parameter {
-        label: "idx",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "V_get", v_get_params, Type_new("T"));
+    V_push<Parameter>(&v_get_params, Parameter_new_full("vec", v_t, n));
+    V_push<Parameter>(&v_get_params, Parameter_new("idx", "I", n));
+    Ctx_load_builtin_full(&ctx, "V_get", v_get_params, generic_params_t, Type_new("T"));
 
     v v_set_params = V_new<Parameter>();
-    V_push<Parameter>(&v_set_params, Parameter {
-        label: "vec",
-        ty: ArgumentType {
-            ty: Type_new("V"),
-            mutable: y
-        }
-    });
-    V_push<Parameter>(&v_set_params, Parameter {
-        label: "idx",
-        ty: ArgumentType {
-            ty: Type_new("I"),
-            mutable: n
-        }
-    });
-    V_push<Parameter>(&v_set_params, Parameter {
-        label: "new_value",
-        ty: ArgumentType {
-            ty: Type_new("I"), // TODO should be T but oh well
-            mutable: n
-        }
-    });
-    Ctx_load_builtin(&ctx, "V_set", v_set_params, Type_new("U"));
+    V_push<Parameter>(&v_set_params, Parameter_new_full("vec", v_t, y));
+    V_push<Parameter>(&v_set_params, Parameter_new("idx", "I", n));
+    V_push<Parameter>(&v_set_params, Parameter_new("new_value", "T", n));
+    Ctx_load_builtin_full(&ctx, "V_set", v_set_params, generic_params_t, unit);
 }
 
 f ExprResult_new_builtin(simple_type: S, size: I) -> ExprResult {
@@ -463,25 +342,31 @@ f get_fn_return_type(ctx: Ctx, key: MMKey) -> TypeInfo {
     i (O_is_some<Type>(fn.signature.ret)) {
         ret = O_get<Type>(fn.signature.ret);
     }
+    print(S_concat("Getting function return: ", ret.ident));
     l ret_type = instantiate_type(
         ret,
         fn.signature.generic_parameters,
         key.generic_args
     );
+    print(S_concat("Instantiated function return: ", ret_type.ident));
     r lookup_type(ctx, ret_type);
 }
 
 f instantiate_type(type: Type, params: V<S>, args: V<Type>) -> Type {
+    print(S_concat("Looking for type in params: ", type.ident));
     l param_idx = V_find_string(params, type.ident);
     i (not(I_eq(param_idx, -1))) {
+        print("Found type in params");
         r V_get<Type>(args, param_idx);
     }
+    print("Didn't find type in params");
 
     v new_type = type;
     v idx = 0;
     w (I_lt(idx, V_len<Type>(type.generic_parameters))) {
         V_set<Type>(
-            &type.generic_parameters,
+            &new_type.generic_parameters,
+            idx,
             instantiate_type(V_get<Type>(type.generic_parameters, idx), params, args)
         );
         idx = I_add(idx, 1);
@@ -528,7 +413,8 @@ f kompile_fn(ctx: &Ctx, fn: FunctionInstance) {
     }
 
     kompile_block(&ctx, fn.stmts);
-    AW_finalize_function(&ctx.wr);
+    l is_main = S_eq(fn.key.ident, "main");
+    AW_finalize_function(&ctx.wr, is_main);
 }
 
 f kompile_block(ctx: &Ctx, block: V<Stmt>) {
@@ -944,6 +830,32 @@ f Type_new(ident: S) -> Type {
     r Type { ident: ident, generic_parameters: V_new<Type>() };
 }
 
+f Type_new_generic1(ident: S, generic: S) -> Type {
+    v generics = V_new<Type>();
+    V_push<Type>(&generics, Type_new(generic));
+    r Type { ident: ident, generic_parameters: generics };
+}
+
+f Parameter_new(label: S, type: S, mutable: B) -> Parameter {
+    r Parameter {
+        label: label,
+        ty: ArgumentType {
+            ty: Type_new(type),
+            mutable: mutable
+        }
+    };
+}
+
+f Parameter_new_full(label: S, type: Type, mutable: B) -> Parameter {
+    r Parameter {
+        label: label,
+        ty: ArgumentType {
+            ty: type,
+            mutable: mutable
+        }
+    };
+}
+
 f exit() {
     nonexistent();
 }
@@ -953,18 +865,35 @@ f Type_is_heap(type: Type) -> B {
     r S_eq(heap.ident, "H");
 }
 
+f place_expr_to_expr(place: PlaceExpr) -> Expr {
+    m (place) {
+        PlaceExpr::Ident(ident) => {
+            r Expr::Ident(ident);
+        }
+        PlaceExpr::Member(access) => {
+            r Expr::Member(MemberAccessExpr {
+                base: place_expr_to_expr(access.base),
+                member: access.member
+            });
+        }
+    }
+}
+
 f prepare_fn_call_args(ctx: &Ctx, call: FunctionCallExpr) {
     v idx = I_sub(V_len<ArgumentValue>(call.arguments), 1);
     w (I_ge(idx, 0)) {
         l arg = V_get<ArgumentValue>(call.arguments, idx);
         m (arg) {
             ArgumentValue::Immutable(expr) => {
-                l result = kompile_expr(&ctx, expr);
+                kompile_expr(&ctx, expr);
                 AW_push_argument_from_rax(&ctx.wr);
             }
-            ArgumentValue::Mutable => {
-                print("Mutable references not supported");
-                exit();
+            ArgumentValue::Mutable(place) => {
+                // Everything is mutable the way we compile things, so just compile
+                // it like any old expression
+                l expr = place_expr_to_expr(place);
+                kompile_expr(&ctx, expr);
+                AW_push_argument_from_rax(&ctx.wr);
             }
         }
         idx = I_sub(idx, 1);
@@ -978,6 +907,7 @@ f create_unit_local(ctx: &Ctx) -> I {
 }
 
 f kompile_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> ExprResult {
+    print(S_concat("Preparing fn call args: ", call.ident));
     prepare_fn_call_args(&ctx, call);
 
     v expr_result = ExprResult {
@@ -1127,5 +1057,6 @@ f kompile_builtin_fn_call(ctx: &Ctx, call: FunctionCallExpr) -> TypeInfo {
 
     AW_call(&ctx.wr, MMKey { ident: call.ident, generic_args: V_new<Type>() });
 
-    r lookup_type(ctx, fn.ret_type);
+    l ret_type = instantiate_type(fn.ret_type, fn.generic_parameters, call.generic_parameters);
+    r lookup_type(ctx, ret_type);
 }

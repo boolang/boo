@@ -23,7 +23,9 @@ after_buf:
     ; brk(0)
     xor rdi, rdi;
     mov rax, 12;
+    push r9;
     syscall;
+    pop r9;
     mov [r9], rax;
 
 non_zero_addr:
@@ -32,7 +34,9 @@ non_zero_addr:
     add rdi, [r9];
     add rdi, 8;
     mov rax, 12;
+    push r9;
     syscall;
+    pop r9;
     mov [r9], rax;
 
     ; write size to addr

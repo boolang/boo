@@ -5,5 +5,6 @@
     mov rdi, [rsp + 16];
     mov rdx, [rdi];
     ; yay lea
-    lea rax, [rdx * 8 + rsi]
+    lea rax, [rdx * 8 + rsi];
+    mov rax, [rax];
     ret

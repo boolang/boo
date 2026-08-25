@@ -16,6 +16,15 @@ s Person {
 }
 
 f main() {
+    v vec = V_new<S>();
+    V_push<S>(&vec, "A");
+    V_push<S>(&vec, "B");
+    V_push<S>(&vec, "C");
+    print(V_get<S>(vec, 0));
+    print(V_get<S>(vec, 1));
+    print(V_get<S>(vec, 2));
+    // print(S_new_from_char(I_chr(I_add(V_len<S>(vec), 48))));
+
     // my_print(mk_msg());
     // print(mk_msg());
 
@@ -64,18 +73,18 @@ f main() {
     // };
     // print(person.name);
 
-    l occupation = Occupation::Student(3);
-    m (occupation) {
-        Occupation::Student(year) => {
-            print(S_concat("Student is in year ", S_new_from_char(I_chr(I_add(year, 48)))));
-        }
-        Occupation::Teacher => {
-            print("They are a teacher");
-        }
-    }
+    // l occupation = Occupation::Student(3);
+    // m (occupation) {
+    //     Occupation::Student(year) => {
+    //         print(S_concat("Student is in year ", S_new_from_char(I_chr(I_add(year, 48)))));
+    //     }
+    //     Occupation::Teacher => {
+    //         print("They are a teacher");
+    //     }
+    // }
 
-    print("after match");
-    exit(0);
+    // print("after match");
+    // exit(0);
     // exit(person.age);
 }
 
