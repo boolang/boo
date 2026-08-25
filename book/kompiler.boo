@@ -125,6 +125,11 @@ f Ctx_load_stdlib_builtins(ctx: &Ctx) {
     V_push<Parameter>(&s_len_params, Parameter_new("first", "S", n));
     Ctx_load_builtin(&ctx, "S_len", s_len_params, int);
 
+    v s_advance_params = V_new<Parameter>();
+    V_push<Parameter>(&s_advance_params, Parameter_new("str", "S", n));
+    V_push<Parameter>(&s_advance_params, Parameter_new("offset", "I", n));
+    Ctx_load_builtin(&ctx, "S_advance", s_advance_params, int);
+
     // vec ops
     v v_new_params = V_new<Parameter>();
     Ctx_load_builtin_full(&ctx, "V_new", v_new_params, generic_params_t, v_t);
